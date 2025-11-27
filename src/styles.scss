@@ -1,10 +1,5 @@
-
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+@include mat.core();
 
 html {
   @include mat.theme((
@@ -18,32 +13,18 @@ html {
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
+  color-scheme: dark;
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
   margin: 0;
 }
-/* You can add global styles to this file, and also import other style files */
-@use '@angular/material' as mat;
 
-// Material Theme
-@include mat.core();
+$primary: mat.m2-define-palette(mat.$m2-indigo-palette, A400, A100, A700);
+$accent: mat.m2-define-palette(mat.$m2-indigo-palette);
+$warn: mat.m2-define-palette(mat.$m2-red-palette);
 
-$primary: mat.define-palette(mat.$indigo-palette);
-$accent: mat.define-palette(mat.$pink-palette);
-$warn: mat.define-palette(mat.$red-palette);
-
-$theme: mat.define-light-theme((
+$theme: mat.m2-define-light-theme((
   color: (
     primary: $primary,
     accent: $accent,
@@ -53,7 +34,6 @@ $theme: mat.define-light-theme((
 
 @include mat.all-component-themes($theme);
 
-// Globale Styles
 body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;

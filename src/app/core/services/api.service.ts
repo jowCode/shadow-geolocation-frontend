@@ -11,7 +11,7 @@ export class ApiService {
   createSession(projectName: string, cameraType: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/session/create`, {
       project_name: projectName,
-      camera_type: cameraType
+      camera_type: cameraType,
     });
   }
 
@@ -27,5 +27,17 @@ export class ApiService {
 
   saveShadows(sessionId: string, data: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/session/${sessionId}/shadows`, data);
+  }
+
+  listScreenshots(sessionId: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/session/${sessionId}/screenshots`);
+  }
+
+  getScreenshotUrl(sessionId: string, filename: string): string {
+    return `${this.baseUrl}/session/${sessionId}/screenshot/${filename}`;
+  }
+
+  saveOrganization(sessionId: string, data: any): Observable<any> {
+    return this.http.post(`${this.baseUrl}/session/${sessionId}/organize`, data);
   }
 }
