@@ -3,8 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-
-// Angular Material
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -88,7 +86,7 @@ interface ScreenshotItem {
                     <div class="timestamp-options">
                       <mat-checkbox
                         [checked]="item.timestampType === 'reference'"
-                        (change)="setAsReference(item.id)"
+                        (change)="onReferenceToggle(item.id, $event.checked)"
                       >
                         Dies ist t0 (Referenzpunkt)
                       </mat-checkbox>
@@ -110,7 +108,7 @@ interface ScreenshotItem {
                     <div class="timestamp-display">
                       <mat-chip-listbox>
                         <mat-chip-option selected>
-                          {{ item.timestamp }}
+                          {{ item.timestamp || 't0+0' }}
                         </mat-chip-option>
                       </mat-chip-listbox>
                     </div>
@@ -355,6 +353,32 @@ export class Stage2OrganizeComponent implements OnInit {
   updateTimestamp(item: ScreenshotItem) {
     if (item.timestampType === 'offset') {
       item.timestamp = `t0+${item.offsetSeconds}`;
+    }
+  }
+
+  onReferenceToggle(id: string, isChecked: boolean) {
+    const item = this.screenshots.find((s) => s.id === id);
+    if (!item) return;
+
+    if (isChecked) {
+      // Setze dieses als t0
+      this.screenshots.forEach((s) => {
+        if (s.id === id) {
+          s.timestampType = 'reference';
+          s.timestamp = 't0';
+          s.offsetSeconds = 0;
+        } else if (s.timestampType === 'reference') {
+          // Vorheriges t0 wird zu offset
+          s.timestampType = 'offset';
+          s.timestamp = 't0+0';
+          s.offsetSeconds = 0;
+        }
+      });
+    } else {
+      // Entferne t0-Status
+      item.timestampType = 'offset';
+      item.timestamp = 't0+0';
+      item.offsetSeconds = 0;
     }
   }
 
