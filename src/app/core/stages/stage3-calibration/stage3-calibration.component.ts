@@ -12,8 +12,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
-import { ThreeViewerComponent, RoomParams, CameraRotation } from '../../shared/three-viewer/three-viewer.component';
+
+import { ThreeViewerComponent, RoomParams, RoomRotation } from '../../shared/three-viewer/three-viewer.component';
 import { StateService } from '../../services/state.service';
+
 
 interface CalibrationStep {
     screenshot: {
@@ -21,7 +23,7 @@ interface CalibrationStep {
         file: File;
     };
     roomParams: RoomParams;
-    cameraRotation: CameraRotation;
+    roomRotation: RoomRotation;
     completed: boolean;
 }
 
@@ -42,46 +44,70 @@ interface CalibrationStep {
         ThreeViewerComponent
     ],
     template: `
-    <div class="stage-container">
-      <mat-card>
-        <mat-card-header>
-          <mat-card-title>Raum kalibrieren</mat-card-title>
-          <mat-card-subtitle>
-            Screenshot {{ currentStepIndex + 1 }} von {{ calibrationSteps.length }}
-          </mat-card-subtitle>
-        </mat-card-header>
+  <div class="stage-container">
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Raum kalibrieren</mat-card-title>
+        <mat-card-subtitle>
+          Screenshot {{ currentStepIndex + 1 }} von {{ calibrationSteps.length }}
+        </mat-card-subtitle>
+      </mat-card-header>
 
-        <mat-card-content>
-          <p class="instructions">
-            Passe die Raum-Dimensionen und Kamera-Rotation an, bis die roten Linien 
-            mit den Raumkanten im Hintergrund übereinstimmen.
-          </p>
+      <mat-card-content>
+        <p class="instructions">
+          Passe die Raum-Dimensionen und Rotation an, bis die roten Linien 
+          mit den Raumkanten im Hintergrund übereinstimmen.
+        </p>
 
-          <!-- 3D Viewer -->
-          <app-three-viewer
-            #viewer
-            [backgroundImage]="currentStep?.screenshot?.file?? undefined"
-            [roomParams]="currentRoomParams"
-            [cameraRotation]="currentCameraRotation"
-            [showGrid]="showGrid"
-            [showHelperLines]="showHelperLines">
-          </app-three-viewer>
+        <!-- ZWEI-SPALTEN-LAYOUT -->
+        <div class="two-column-layout">
+          
+          <!-- LINKE SPALTE: 3D Viewer -->
+          <div class="viewer-column">
+            <app-three-viewer
+              #viewer
+              [backgroundImage]="currentStep?.screenshot?.file ?? undefined"
+              [roomParams]="currentRoomParams"
+              [roomRotation]="currentRoomRotation"
+              [showGrid]="showGrid"
+              [showHelperLines]="showHelperLines">
+            </app-three-viewer>
 
-          <!-- Controls -->
-          <div class="controls-section">
-            <mat-divider></mat-divider>
+            <!-- Legende direkt unter Viewer -->
+            <mat-card class="legend-card">
+              <mat-card-content>
+                <h4>Orientierungs-Hilfe</h4>
+                <div class="legend-row">
+                  <div class="legend-item">
+                    <div class="color-box" style="background: #ff0000;"></div>
+                    <span>Rote Kanten</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="color-box" style="background: #ffff00;"></div>
+                    <span>Gelbe Ecken</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="color-box" style="background: #3f51b5; opacity: 0.3;"></div>
+                    <span>Blaue Flächen</span>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
 
+          <!-- RECHTE SPALTE: Controls -->
+          <div class="controls-column">
+            
             <!-- Raum-Dimensionen -->
             <div class="control-group">
               <h3>Raum-Dimensionen</h3>
               
               <div class="slider-row">
-                <label>Breite (m):</label>
+                <label>Breite:</label>
                 <mat-slider 
                   min="2" 
                   max="15" 
-                  step="0.1" 
-                  showTickMarks
+                  step="0.1"
                   [disabled]="currentStepIndex > 0">
                   <input matSliderThumb [(ngModel)]="currentRoomParams.width" (ngModelChange)="onRoomChange()">
                 </mat-slider>
@@ -89,12 +115,11 @@ interface CalibrationStep {
               </div>
 
               <div class="slider-row">
-                <label>Tiefe (m):</label>
+                <label>Tiefe:</label>
                 <mat-slider 
                   min="2" 
                   max="15" 
                   step="0.1"
-                  showTickMarks
                   [disabled]="currentStepIndex > 0">
                   <input matSliderThumb [(ngModel)]="currentRoomParams.depth" (ngModelChange)="onRoomChange()">
                 </mat-slider>
@@ -102,237 +127,292 @@ interface CalibrationStep {
               </div>
 
               <div class="slider-row">
-                <label>Höhe (m):</label>
+                <label>Höhe:</label>
                 <mat-slider 
                   min="2" 
                   max="5" 
                   step="0.1"
-                  showTickMarks
                   [disabled]="currentStepIndex > 0">
                   <input matSliderThumb [(ngModel)]="currentRoomParams.height" (ngModelChange)="onRoomChange()">
                 </mat-slider>
                 <span class="value">{{ currentRoomParams.height.toFixed(1) }}m</span>
               </div>
 
-              <div *ngIf="currentStepIndex > 0" class="info-message">
+              <div *ngIf="currentStepIndex > 0" class="info-message-compact">
                 <mat-icon>lock</mat-icon>
-                <span>Raum-Dimensionen sind nach Screenshot 1 fixiert</span>
+                <span>Fixiert nach Screenshot 1</span>
               </div>
             </div>
 
             <mat-divider></mat-divider>
 
-            <!-- Kamera-Rotation -->
+            <!-- Raum-Rotation -->
             <div class="control-group">
-              <h3>Kamera-Rotation (nur für diesen Screenshot)</h3>
+              <h3>Raum-Rotation</h3>
               
               <div class="slider-row">
-                <label>Pan (horizontal):</label>
+                <label>X-Achse:</label>
                 <mat-slider 
-                  min="-90" 
-                  max="90" 
-                  step="1"
-                  showTickMarks>
-                  <input matSliderThumb [(ngModel)]="currentCameraRotation.pan" (ngModelChange)="onCameraRotationChange()">
+                  min="-180" 
+                  max="180" 
+                  step="1">
+                  <input matSliderThumb [(ngModel)]="currentRoomRotation.x" (ngModelChange)="onRoomRotationChange()">
                 </mat-slider>
-                <span class="value">{{ currentCameraRotation.pan }}°</span>
+                <span class="value">{{ currentRoomRotation.x }}°</span>
               </div>
 
               <div class="slider-row">
-                <label>Tilt (vertikal):</label>
+                <label>Y-Achse:</label>
                 <mat-slider 
-                  min="-45" 
-                  max="45" 
-                  step="1"
-                  showTickMarks>
-                  <input matSliderThumb [(ngModel)]="currentCameraRotation.tilt" (ngModelChange)="onCameraRotationChange()">
+                  min="-180" 
+                  max="180" 
+                  step="1">
+                  <input matSliderThumb [(ngModel)]="currentRoomRotation.y" (ngModelChange)="onRoomRotationChange()">
                 </mat-slider>
-                <span class="value">{{ currentCameraRotation.tilt }}°</span>
+                <span class="value">{{ currentRoomRotation.y }}°</span>
+              </div>
+
+              <div class="slider-row">
+                <label>Z-Achse:</label>
+                <mat-slider 
+                  min="-180" 
+                  max="180" 
+                  step="1">
+                  <input matSliderThumb [(ngModel)]="currentRoomRotation.z" (ngModelChange)="onRoomRotationChange()">
+                </mat-slider>
+                <span class="value">{{ currentRoomRotation.z }}°</span>
               </div>
             </div>
 
             <mat-divider></mat-divider>
 
-            <!-- Hilfs-Optionen -->
+            <!-- Anzeige-Optionen -->
             <div class="control-group">
-              <h3>Anzeige-Optionen</h3>
+              <h3>Anzeige</h3>
               <mat-checkbox [(ngModel)]="showGrid" (ngModelChange)="onToggleGrid()">
-                Boden-Grid anzeigen
+                Boden-Grid
               </mat-checkbox>
               <mat-checkbox [(ngModel)]="showHelperLines">
-                Hilfslinien anzeigen
+                Achsen
               </mat-checkbox>
             </div>
-          </div>
 
-          <!-- Nach den Controls, vor Progress -->
-            <mat-card class="legend-card">
-            <mat-card-content>
-                <h4>Orientierungs-Hilfe</h4>
-                <div class="legend-item">
-                <div class="color-box" style="background: #ff0000;"></div>
-                <span>Rote Kanten = Raumkanten</span>
-                </div>
-                <div class="legend-item">
-                <div class="color-box" style="background: #ffff00;"></div>
-                <span>Gelbe Kugeln = Raumecken</span>
-                </div>
-                <div class="legend-item">
-                <div class="color-box" style="background: #3f51b5; opacity: 0.3;"></div>
-                <span>Blaue Flächen = Wände/Boden/Decke</span>
-                </div>
-            </mat-card-content>
-            </mat-card>
+            <mat-divider></mat-divider>
 
-          <!-- Fortschritt -->
-          <mat-card class="progress-card">
-            <mat-card-content>
+            <!-- Fortschritt -->
+            <div class="control-group">
+              <h3>Fortschritt</h3>
               <div class="progress-item" *ngFor="let step of calibrationSteps; let i = index">
                 <mat-icon [color]="step.completed ? 'primary' : ''">
                   {{ step.completed ? 'check_circle' : 'radio_button_unchecked' }}
                 </mat-icon>
                 <span>Screenshot {{ i + 1 }}</span>
-                <span class="spacer"></span>
-                <mat-chip *ngIf="step.completed">
-                  ✓ Kalibriert
-                </mat-chip>
+                <mat-chip *ngIf="step.completed" class="completed-chip">✓</mat-chip>
               </div>
-            </mat-card-content>
-          </mat-card>
-        </mat-card-content>
+            </div>
 
-        <mat-card-actions align="end">
-          <button mat-button (click)="onBack()">
-            <mat-icon>arrow_back</mat-icon>
-            Zurück
-          </button>
+          </div>
+        </div>
 
-          <button 
-            mat-button
-            *ngIf="currentStepIndex < calibrationSteps.length - 1"
-            (click)="onSkipScreenshot()">
-            Screenshot überspringen
-          </button>
+      </mat-card-content>
 
-          <button 
-            mat-raised-button 
-            color="accent"
-            *ngIf="currentStepIndex < calibrationSteps.length - 1"
-            (click)="onNextScreenshot()">
-            Screenshot übernehmen
-          </button>
+      <mat-card-actions align="end">
+        <button mat-button (click)="onBack()">
+          <mat-icon>arrow_back</mat-icon>
+          Zurück
+        </button>
 
-          <button 
-            mat-raised-button 
-            color="primary"
-            *ngIf="currentStepIndex === calibrationSteps.length - 1"
-            (click)="onFinishCalibration()">
-            Kalibrierung abschließen
-          </button>
-        </mat-card-actions>
-      </mat-card>
-    </div>
-  `,
+        <button 
+          mat-button
+          *ngIf="currentStepIndex < calibrationSteps.length - 1"
+          (click)="onSkipScreenshot()">
+          Überspringen
+        </button>
+
+        <button 
+          mat-raised-button 
+          color="accent"
+          *ngIf="currentStepIndex < calibrationSteps.length - 1"
+          (click)="onNextScreenshot()">
+          Übernehmen
+        </button>
+
+        <button 
+          mat-raised-button 
+          color="primary"
+          *ngIf="currentStepIndex === calibrationSteps.length - 1"
+          (click)="onFinishCalibration()">
+          Abschließen
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+`,
     styles: [`
-    .stage-container {
-      max-width: 1400px;
-      margin: 50px auto;
-      padding: 20px;
+  .stage-container {
+    max-width: 1800px;
+    margin: 50px auto;
+    padding: 20px;
+  }
+
+  .instructions {
+    color: #666;
+    margin-bottom: 20px;
+  }
+
+  /* ZWEI-SPALTEN-LAYOUT */
+  .two-column-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 30px;
+    align-items: start;
+  }
+
+  .viewer-column {
+    position: sticky;
+    top: 20px;
+  }
+
+  .controls-column {
+    overflow-y: auto;
+    max-height: calc(100vh - 200px);
+    padding-right: 10px;
+  }
+
+  /* Legende kompakter */
+  .legend-card {
+    margin-top: 15px;
+    background: #fff3cd;
+  }
+
+  .legend-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+  }
+
+  .legend-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .color-box {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #333;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Control Groups */
+  .control-group {
+    padding: 15px 0;
+  }
+
+  .control-group h3 {
+    margin: 0 0 15px 0;
+    font-size: 15px;
+    color: #333;
+    font-weight: 600;
+  }
+
+  /* Slider Rows kompakter */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .slider-row label {
+    min-width: 70px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .slider-row mat-slider {
+    flex-grow: 1;
+  }
+
+  .slider-row .value {
+    min-width: 50px;
+    text-align: right;
+    font-weight: 500;
+    font-size: 13px;
+    color: #3f51b5;
+  }
+
+  .info-message-compact {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    color: #1976d2;
+    font-size: 12px;
+    margin-top: 10px;
+  }
+
+  .info-message-compact mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Progress kompakter */
+  .progress-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  .progress-item mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .completed-chip {
+    font-size: 11px;
+    min-height: 20px;
+    padding: 0 8px;
+  }
+
+  mat-checkbox {
+    display: block;
+    margin: 8px 0;
+    font-size: 13px;
+  }
+
+  mat-divider {
+    margin: 15px 0;
+  }
+
+  /* Responsive: Auf kleineren Screens vertikal */
+  @media (max-width: 1200px) {
+    .two-column-layout {
+      grid-template-columns: 1fr;
     }
 
-    .legend-card {
-        margin-top: 20px;
-        background: #fff3cd;
+    .viewer-column {
+      position: static;
     }
 
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 8px 0;
+    .controls-column {
+      max-height: none;
     }
-
-    .color-box {
-        width: 20px;
-        height: 20px;
-        border: 1px solid #333;
-        border-radius: 2px;
-    }
-
-    .instructions {
-      color: #666;
-      margin-bottom: 20px;
-    }
-
-    .controls-section {
-      margin-top: 30px;
-    }
-
-    .control-group {
-      padding: 20px 0;
-    }
-
-    .control-group h3 {
-      margin: 0 0 20px 0;
-      font-size: 16px;
-      color: #333;
-    }
-
-    .slider-row {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-
-    .slider-row label {
-      min-width: 150px;
-      font-weight: 500;
-    }
-
-    .slider-row mat-slider {
-      flex-grow: 1;
-    }
-
-    .slider-row .value {
-      min-width: 60px;
-      text-align: right;
-      font-weight: 500;
-      color: #3f51b5;
-    }
-
-    .info-message {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px;
-      background: #e3f2fd;
-      border-radius: 4px;
-      color: #1976d2;
-      margin-top: 10px;
-    }
-
-    .progress-card {
-      margin-top: 20px;
-      background: #f5f5f5;
-    }
-
-    .progress-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 10px 0;
-    }
-
-    .spacer {
-      flex: 1 1 auto;
-    }
-
-    mat-checkbox {
-      display: block;
-      margin: 10px 0;
-    }
-  `]
+  }
+`]
 })
 export class Stage3CalibrationComponent implements OnInit {
     @ViewChild('viewer') viewer!: ThreeViewerComponent;
@@ -341,7 +421,7 @@ export class Stage3CalibrationComponent implements OnInit {
     currentStepIndex = 0;
 
     currentRoomParams: RoomParams = { width: 4, depth: 5, height: 2.5 };
-    currentCameraRotation: CameraRotation = { pan: 0, tilt: 0 };
+    currentRoomRotation: RoomRotation = { x: 0, y: 0, z: 0 };
 
     showGrid = true;
     showHelperLines = true;
@@ -369,7 +449,7 @@ export class Stage3CalibrationComponent implements OnInit {
                 file: s.file
             },
             roomParams: { ...this.currentRoomParams },
-            cameraRotation: { pan: 0, tilt: 0 },
+            roomRotation: { x: 0, y: 0, z: 0 },
             completed: false
         }));
 
@@ -381,13 +461,11 @@ export class Stage3CalibrationComponent implements OnInit {
     }
 
     onRoomChange() {
-        // Live-Update im Viewer
         this.viewer?.updateRoom(this.currentRoomParams);
     }
 
-    onCameraRotationChange() {
-        // Live-Update im Viewer
-        this.viewer?.updateCameraRotation(this.currentCameraRotation);
+    onRoomRotationChange() {
+        this.viewer?.updateRoomRotation(this.currentRoomRotation);
     }
 
     onToggleGrid() {
@@ -395,24 +473,20 @@ export class Stage3CalibrationComponent implements OnInit {
     }
 
     onNextScreenshot() {
-        // Aktuelle Kalibrierung speichern
         if (this.currentStep) {
             this.currentStep.roomParams = { ...this.currentRoomParams };
-            this.currentStep.cameraRotation = { ...this.currentCameraRotation };
+            this.currentStep.roomRotation = { ...this.currentRoomRotation };
             this.currentStep.completed = true;
         }
 
-        // Zum nächsten Screenshot
         this.currentStepIndex++;
 
         if (this.currentStepIndex < this.calibrationSteps.length) {
-            // Nächster Screenshot: Raum bleibt, Rotation zurücksetzen
-            this.currentCameraRotation = { pan: 0, tilt: 0 };
+            this.currentRoomRotation = { x: 0, y: 0, z: 0 };
 
-            // Viewer updaten
             setTimeout(() => {
                 this.viewer?.updateBackground(this.currentStep!.screenshot.file);
-                this.viewer?.updateCameraRotation(this.currentCameraRotation);
+                this.viewer?.updateRoomRotation(this.currentRoomRotation);
             }, 100);
         }
     }
@@ -421,24 +495,22 @@ export class Stage3CalibrationComponent implements OnInit {
         this.currentStepIndex++;
 
         if (this.currentStepIndex < this.calibrationSteps.length) {
-            this.currentCameraRotation = { pan: 0, tilt: 0 };
+            this.currentRoomRotation = { x: 0, y: 0, z: 0 };
 
             setTimeout(() => {
                 this.viewer?.updateBackground(this.currentStep!.screenshot.file);
-                this.viewer?.updateCameraRotation(this.currentCameraRotation);
+                this.viewer?.updateRoomRotation(this.currentRoomRotation);
             }, 100);
         }
     }
 
     onFinishCalibration() {
-        // Letzte Kalibrierung speichern
         if (this.currentStep) {
             this.currentStep.roomParams = { ...this.currentRoomParams };
-            this.currentStep.cameraRotation = { ...this.currentCameraRotation };
+            this.currentStep.roomRotation = { ...this.currentRoomRotation };
             this.currentStep.completed = true;
         }
 
-        // Konsistenz-Check (optional)
         const completedSteps = this.calibrationSteps.filter(s => s.completed);
 
         if (completedSteps.length < 2) {
@@ -446,15 +518,17 @@ export class Stage3CalibrationComponent implements OnInit {
             return;
         }
 
-        // TODO: Konsistenz-Check der Raum-Dimensionen zwischen Screenshots
-
         // Kalibrierungs-Daten im State speichern
         const calibrationData = {
             room: this.currentRoomParams,
-            cameraPosition: { x: 2, y: 1.5, z: 1 }, // Fest
+            cameraPosition: {
+                x: this.currentRoomParams.width / 2,
+                y: this.currentRoomParams.height / 2 + 3,
+                z: this.currentRoomParams.depth / 2 - 5
+            },
             screenshots: this.calibrationSteps.map(step => ({
                 id: step.screenshot.id,
-                cameraRotation: step.cameraRotation,
+                roomRotation: step.roomRotation,
                 completed: step.completed
             }))
         };
@@ -463,8 +537,7 @@ export class Stage3CalibrationComponent implements OnInit {
 
         console.log('Kalibrierung abgeschlossen:', calibrationData);
 
-        // Weiter zu Stage 4 (Objekte) oder Stage 5 (Schatten)
-        // Vorerst: Direkt zu Stage 5
+        // Weiter zu Stage 5 (Schatten) - Stage 4 überspringen wir vorerst
         this.router.navigate(['/stage5-shadows']);
     }
 
