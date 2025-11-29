@@ -44,32 +44,9 @@
             </div>
           </div>
 
-          <!-- Screenshot-Größe & Position -->
+          <!-- Screenshot-Position -->
           <div class="control-group">
-            <h3>Screenshot Anpassung</h3>
-
-            <div class="slider-row">
-              <mat-icon class="slider-icon" matTooltip="Größe">photo_size_select_large</mat-icon>
-              <mat-slider
-                min="10"
-                max="200"
-                step="1"
-                [disabled]="masterBackgroundScale !== undefined && completedCount > 0"
-              >
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentBackgroundScale"
-                  (ngModelChange)="onBackgroundScaleChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentBackgroundScale }}%</span>
-              <mat-icon
-                *ngIf="masterBackgroundScale !== undefined && completedCount > 0"
-                matTooltip="Fixiert"
-              >
-                lock
-              </mat-icon>
-            </div>
+            <h3>Screenshot Position</h3>
 
             <div class="slider-row">
               <mat-icon class="slider-icon" matTooltip="Horizontal">swap_horiz</mat-icon>
@@ -93,18 +70,6 @@
                 />
               </mat-slider>
               <span class="value">{{ currentBackgroundOffsetY }}%</span>
-            </div>
-
-            <div
-              *ngIf="
-                masterBackgroundScale &&
-                currentBackgroundScale !== masterBackgroundScale &&
-                completedCount > 0
-              "
-              class="info-message-compact info-tip"
-            >
-              <mat-icon>warning</mat-icon>
-              <span>Empfohlen: {{ masterBackgroundScale }}% (Basis)</span>
             </div>
           </div>
 
@@ -241,25 +206,13 @@
               </mat-slider>
               <span class="value">{{ currentRoomRotation.y }}°</span>
             </div>
-
-            <div class="slider-row">
-              <label>Z:</label>
-              <mat-slider min="-180" max="180" step="1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentRoomRotation.z"
-                  (ngModelChange)="onRoomRotationChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentRoomRotation.z }}°</span>
-            </div>
           </div>
         </div>
       </div>
 
       <!-- RAUM-DIMENSIONEN (GLOBAL) - HORIZONTAL BAR -->
       <div class="room-dimensions-bar">
-        <h3>Raum-Dimensionen (global)</h3>
+        <h3>Globale Parameter</h3>
         <div class="room-slider-group">
           <div class="room-slider-item">
             <label>B:</label>
@@ -295,6 +248,18 @@
               />
             </mat-slider>
             <span class="value">{{ currentRoomParams.height.toFixed(1) }}m</span>
+          </div>
+
+          <div class="room-slider-item">
+            <label matTooltip="Screenshot-Größe (Focal Length)">S:</label>
+            <mat-slider min="10" max="200" step="1">
+              <input
+                matSliderThumb
+                [(ngModel)]="currentBackgroundScale"
+                (ngModelChange)="onBackgroundScaleChange()"
+              />
+            </mat-slider>
+            <span class="value">{{ currentBackgroundScale }}%</span>
           </div>
         </div>
       </div>

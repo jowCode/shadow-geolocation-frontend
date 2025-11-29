@@ -1,45 +1,61 @@
 @use '@angular/material' as mat;
+
 @include mat.core();
 
-html {
-  @include mat.theme((
+// Material 2 Dark Theme - Dunkleres Grau und Orange
+$m2-primary: mat.m2-define-palette(mat.$m2-blue-gray-palette, 800, 600, 900); // Dunkleres Grau
+$m2-accent: mat.m2-define-palette(mat.$m2-orange-palette, 500, 300, 700);
+$m2-warn: mat.m2-define-palette(mat.$m2-red-palette);
+
+$dark-theme: mat.m2-define-dark-theme(
+  (
     color: (
-      primary: mat.$cyan-palette,
-      tertiary: mat.$orange-palette,
+      primary: $m2-primary,
+      accent: $m2-accent,
+      warn: $m2-warn,
     ),
-    typography: Roboto,
-    density: 0,
-  ));
-}
-
-body {
-  color-scheme: dark;
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-  margin: 0;
-}
-
-$primary: mat.m2-define-palette(mat.$m2-indigo-palette, A400, A100, A700);
-$accent: mat.m2-define-palette(mat.$m2-indigo-palette);
-$warn: mat.m2-define-palette(mat.$m2-red-palette);
-
-$theme: mat.m2-define-light-theme((
-  color: (
-    primary: $primary,
-    accent: $accent,
-    warn: $warn,
   )
-));
+);
 
-@include mat.all-component-themes($theme);
+@include mat.all-component-themes($dark-theme);
 
+// Body & Global Styles
+html,
 body {
+  height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
-  background: #fafafa;
 }
 
+body {
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+}
+
+// SLIDER-FARBEN FIX - Orange statt blasses Teal/Blau
+mat-slider {
+  --mdc-slider-handle-color: #ff9800 !important; // Orange Handle
+  --mdc-slider-focus-handle-color: #ff9800 !important;
+  --mdc-slider-hover-handle-color: #ff9800 !important;
+  --mdc-slider-active-track-color: #ff9800 !important; // Orange aktiver Track
+  --mdc-slider-inactive-track-color: #616161 !important; // Dunkelgrau inaktiv
+  --mdc-slider-with-tick-marks-active-container-color: #ff9800 !important;
+  --mdc-slider-with-tick-marks-inactive-container-color: #616161 !important;
+}
+
+// Nur für spezifische Upload-Bereiche mit weißem Hintergrund
+.upload-zone,
+.drop-zone,
+.file-upload-area {
+  color: rgba(0, 0, 0, 0.87) !important;
+
+  .upload-instructions,
+  .drop-hint {
+    color: rgba(0, 0, 0, 0.6) !important;
+  }
+}
+
+// Utility Classes
 .full-width {
   width: 100%;
 }
@@ -47,5 +63,3 @@ body {
 .spacer {
   flex: 1 1 auto;
 }
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }

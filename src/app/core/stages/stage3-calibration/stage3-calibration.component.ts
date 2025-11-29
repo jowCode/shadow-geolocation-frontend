@@ -59,19 +59,18 @@ export class Stage3CalibrationComponent implements OnInit {
 
   // Global
   currentRoomParams: RoomParams = { width: 4, depth: 5, height: 2.5 };
+  currentBackgroundScale = 50; // Jetzt auch global!
 
   // Pro Screenshot (oder global wenn locked)
   currentCameraPosition = { x: 2, y: 1.5, z: 3 };
-  currentRoomRotation: RoomRotation = { x: 0, y: 0, z: 0 };
+  currentRoomRotation: RoomRotation = { x: 0, y: 0, z: 0 }; // z bleibt immer 0
   currentBackgroundRotation = 0;
-  currentBackgroundScale = 50;
   currentBackgroundOffsetX = 50;
   currentBackgroundOffsetY = 50;
 
   // Settings
   showGrid = true;
   lockCameraPosition = false;
-  masterBackgroundScale?: number;
 
   constructor(
     private stateService: StateService,
@@ -95,7 +94,7 @@ export class Stage3CalibrationComponent implements OnInit {
         file: s.file
       },
       cameraPosition: { x: 2, y: 1.5, z: 3 },
-      roomRotation: { x: 0, y: 0, z: 0 },
+      roomRotation: { x: 0, y: 0, z: 0 }, // z bleibt immer 0
       backgroundRotation: 0,
       backgroundScale: 50,
       backgroundOffsetX: 50,
@@ -149,11 +148,6 @@ export class Stage3CalibrationComponent implements OnInit {
 
   onSaveCurrentScreenshot() {
     if (this.currentStep) {
-      // Erster Screenshot? → Master Scale setzen
-      if (this.completedCount === 0) {
-        this.masterBackgroundScale = this.currentBackgroundScale;
-      }
-
       this.currentStep.cameraPosition = { ...this.currentCameraPosition };
       this.currentStep.roomRotation = { ...this.currentRoomRotation };
       this.currentStep.backgroundRotation = this.currentBackgroundRotation;
@@ -197,16 +191,12 @@ export class Stage3CalibrationComponent implements OnInit {
       }
 
       this.currentRoomRotation = newStep.roomRotation
-        ? { ...newStep.roomRotation }
+        ? { ...newStep.roomRotation, z: 0 } // z immer auf 0 setzen
         : { x: 0, y: 0, z: 0 };
       this.currentBackgroundRotation = newStep.backgroundRotation ?? 0;
 
-      // Background Scale: Master oder individuell
-      if (!newStep.completed && this.masterBackgroundScale !== undefined) {
-        this.currentBackgroundScale = this.masterBackgroundScale;
-      } else {
-        this.currentBackgroundScale = newStep.backgroundScale ?? 50;
-      }
+      // Background Scale: Der globale Wert bleibt, wird NICHT vom Step geladen
+      // currentBackgroundScale bleibt unverändert
 
       this.currentBackgroundOffsetX = newStep.backgroundOffsetX ?? 50;
       this.currentBackgroundOffsetY = newStep.backgroundOffsetY ?? 50;
@@ -236,7 +226,7 @@ export class Stage3CalibrationComponent implements OnInit {
     }
 
     const confirm = window.confirm(
-      `Kalibrierung mit ${completedSteps.length} von ${this.calibrationSteps.length} Screenshots abschließen ?\n\n` +
+      `Kalibrierung mit ${completedSteps.length} von ${this.calibrationSteps.length} Screenshots abschließen?\n\n` +
       `Nicht kalibrierte Screenshots werden ignoriert.`
     );
 
@@ -244,16 +234,21 @@ export class Stage3CalibrationComponent implements OnInit {
       return;
     }
 
+    // WICHTIG: Setze den globalen Scale-Wert für ALLE Screenshots
+    this.calibrationSteps.forEach(step => {
+      step.backgroundScale = this.currentBackgroundScale;
+    });
+
     const calibrationData = {
       room: this.currentRoomParams,
       globalCameraPosition: this.lockCameraPosition ? this.currentCameraPosition : null,
-      masterFocalLength: this.masterBackgroundScale,
+      masterFocalLength: this.currentBackgroundScale,
       screenshots: this.calibrationSteps.map(step => ({
         id: step.screenshot.id,
         cameraPosition: step.cameraPosition,
         roomRotation: step.roomRotation,
         backgroundRotation: step.backgroundRotation,
-        backgroundScale: step.backgroundScale,
+        backgroundScale: step.backgroundScale, // Jetzt garantiert überall gleich
         backgroundOffsetX: step.backgroundOffsetX,
         backgroundOffsetY: step.backgroundOffsetY,
         completed: step.completed
