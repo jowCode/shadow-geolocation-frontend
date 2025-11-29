@@ -1,0 +1,11 @@
+<div class="viewer-container">
+  <div
+    class="background-image"
+    *ngIf="backgroundUrl"
+    [style.background-image]="'url(' + backgroundUrl + ')'"
+    [style.transform]="'rotate(' + backgroundRotation + 'deg)'"
+    [style.background-size]="backgroundScale + '%'"
+    [style.background-position]="backgroundOffsetX + '% ' + backgroundOffsetY + '%'"
+  ></div>
+  <canvas #canvas></canvas>
+</div>

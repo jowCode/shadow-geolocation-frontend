@@ -1,0 +1,256 @@
+.stage-container {
+  max-width: 1800px;
+  margin: 10px auto;
+  padding: 20px;
+}
+
+.instructions {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.tutorial-card {
+  margin-bottom: 20px;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+}
+
+.tutorial-steps {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tutorial-steps li {
+  margin: 8px 0;
+}
+
+.screenshot-navigation {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+
+.screenshot-navigation button {
+  min-width: 140px;
+  font-size: 13px;
+}
+
+.screenshot-navigation button.active {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  font-weight: 600;
+}
+
+.screenshot-navigation button.completed {
+  border-color: #4caf50;
+}
+
+.screenshot-navigation button mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+}
+
+.two-column-layout {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 30px;
+  align-items: start;
+}
+
+.viewer-column {
+  position: sticky;
+  top: 20px;
+}
+
+.controls-column {
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  padding-right: 10px;
+}
+
+.legend-card {
+  margin-top: 15px;
+  background: #fff3cd;
+}
+
+.legend-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+}
+
+.legend-row {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.color-box {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #333;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.control-group {
+  padding: 15px 0;
+}
+
+.control-group h3 {
+  margin: 0 0 15px 0;
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.slider-row label {
+  min-width: 120px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.slider-row mat-slider {
+  flex-grow: 1;
+}
+
+.slider-row .value {
+  min-width: 50px;
+  text-align: right;
+  font-weight: 500;
+  font-size: 13px;
+  color: #3f51b5;
+}
+
+.slider-row mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #666;
+}
+
+.info-message-compact {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  color: #1976d2;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.info-message-compact mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.info-tip {
+  background: #fff3cd !important;
+  color: #856404 !important;
+}
+
+.calibration-progress {
+  margin-top: 30px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.progress-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.progress-text {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+mat-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.progress-details {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.progress-step span.completed {
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.progress-step mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+mat-checkbox {
+  display: block;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+mat-divider {
+  margin: 15px 0;
+}
+
+@media (max-width: 1200px) {
+  .two-column-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-column {
+    position: static;
+  }
+
+  .controls-column {
+    max-height: none;
+  }
+}

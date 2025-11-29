@@ -115,7 +115,7 @@ import { StateService } from '../../services/state.service';
     `
       .stage-container {
         max-width: 800px;
-        margin: 50px auto;
+        margin: 10px auto;
         padding: 20px;
       }
 
@@ -204,7 +204,7 @@ export class Stage1SetupComponent {
     private apiService: ApiService,
     private stateService: StateService,
     private router: Router
-  ) {}
+  ) { }
 
   get canProceed(): boolean {
     return this.projectName.trim().length > 0 && this.files.length > 0;

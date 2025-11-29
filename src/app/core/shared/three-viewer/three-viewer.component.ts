@@ -11,25 +11,15 @@ export interface RoomParams {
 }
 
 export interface RoomRotation {
-    x: number;  // Pitch (Kippen vorwärts/rückwärts)
-    y: number;  // Yaw (Drehen links/rechts)
-    z: number;  // Roll (Neigen links/rechts)
+    x: number;
+    y: number;
+    z: number;
 }
-
 @Component({
     selector: 'app-three-viewer',
     standalone: true,
     imports: [CommonModule],
-    template: `
-    <div class="viewer-container">
-      <div 
-        class="background-image"
-        *ngIf="backgroundUrl"
-        [style.background-image]="'url(' + backgroundUrl + ')'">
-      </div>
-      <canvas #canvas></canvas>
-    </div>
-  `,
+    templateUrl: "./three-viewer.component.html",
     styleUrls: ["./three-viewer.component.scss"]
 })
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges {
@@ -38,8 +28,13 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     @Input() backgroundImage?: File;
     @Input() roomParams: RoomParams = { width: 4, depth: 5, height: 2.5 };
     @Input() roomRotation: RoomRotation = { x: 0, y: 0, z: 0 };
+    @Input() cameraPosition = { x: 2, y: 1.5, z: 3 };
+    @Input() backgroundRotation = 0;
+    @Input() backgroundScale = 50;
+    @Input() backgroundOffsetX = 50;
+    @Input() backgroundOffsetY = 50;
     @Input() showGrid = true;
-    @Input() showHelperLines = true;
+
 
     backgroundUrl: string | null = null;
 
@@ -78,10 +73,8 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     private initThreeJS() {
         const canvas = this.canvasRef.nativeElement;
 
-        // 1. Scene erstellen
         this.scene = new THREE.Scene();
 
-        // 2. Camera erstellen
         this.camera = new THREE.PerspectiveCamera(
             60,
             canvas.clientWidth / canvas.clientHeight,
@@ -89,7 +82,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
             1000
         );
 
-        // 3. Renderer erstellen
         this.renderer = new THREE.WebGLRenderer({
             canvas,
             antialias: true,
@@ -99,36 +91,32 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
 
-        // 4. OrbitControls
+        // OrbitControls NUR für Zoom!
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableRotate = false;
+        this.controls.enablePan = false;
+        this.controls.enableZoom = true;
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        this.controls.minDistance = 2;
+        this.controls.maxDistance = 30;
         this.controls.target.set(
             this.roomParams.width / 2,
             this.roomParams.height / 2,
             this.roomParams.depth / 2
         );
 
-        // 5. Resize Handler
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
     private createScene() {
-        // Raum erstellen
         this.createRoomWireframe();
 
-        // Grid (optional)
         if (this.showGrid) {
             this.createGrid();
         }
 
-        // Achsen-Helper (optional)
-        if (this.showHelperLines) {
-            const axesHelper = new THREE.AxesHelper(5);
-            this.scene.add(axesHelper);
-        }
 
-        // Licht
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         this.scene.add(ambientLight);
 
@@ -136,21 +124,9 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         directionalLight.position.set(5, 10, 5);
         this.scene.add(directionalLight);
 
-        // Kamera-Position
-        this.camera.position.set(
-            this.roomParams.width / 2,
-            this.roomParams.height / 2 + 3,
-            this.roomParams.depth / 2 - 5
-        );
+        // Kamera-Position & Rotation
+        this.updateCameraTransform();
 
-        // Kamera schaut auf Raum-Mitte
-        this.camera.lookAt(
-            this.roomParams.width / 2,
-            this.roomParams.height / 2,
-            this.roomParams.depth / 2
-        );
-
-        // OrbitControls Target
         if (this.controls) {
             this.controls.target.set(
                 this.roomParams.width / 2,
@@ -160,16 +136,47 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         }
     }
 
+    private updateCameraTransform() {
+        // Position setzen
+        this.camera.position.set(
+            this.cameraPosition.x,
+            this.cameraPosition.y,
+            this.cameraPosition.z
+        );
+
+        // Rotation setzen (in Euler-Winkel)
+        const xRad = THREE.MathUtils.degToRad(this.roomRotation.x);
+        const yRad = THREE.MathUtils.degToRad(this.roomRotation.y);
+        const zRad = THREE.MathUtils.degToRad(this.roomRotation.z);
+
+        this.camera.rotation.order = 'YXZ'; // Wichtig: Erst Y (Yaw), dann X (Pitch), dann Z (Roll)
+        this.camera.rotation.set(xRad, yRad, zRad);
+
+        // OrbitControls target muss auch aktualisiert werden
+        if (this.controls) {
+            // Target ist wohin die Kamera "schaut" nach der Rotation
+            // Wir setzen es auf einen Punkt VOR der Kamera
+            const direction = new THREE.Vector3(0, 0, -5); // 5 Einheiten vor der Kamera
+            direction.applyEuler(this.camera.rotation);
+
+            const target = new THREE.Vector3(
+                this.cameraPosition.x + direction.x,
+                this.cameraPosition.y + direction.y,
+                this.cameraPosition.z + direction.z
+            );
+
+            this.controls.target.copy(target);
+            this.controls.update();
+        }
+    }
+
     private createRoomWireframe() {
-        // Alte Objekte entfernen
         if (this.roomMesh) {
             this.scene.remove(this.roomMesh);
         }
 
-        // Gruppe für alle Raum-Elemente
         this.roomMesh = new THREE.Group();
 
-        // 1. FLÄCHEN (leicht transparent)
         const boxGeometry = new THREE.BoxGeometry(
             this.roomParams.width,
             this.roomParams.height,
@@ -186,7 +193,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         const faceMesh = new THREE.Mesh(boxGeometry, faceMaterial);
         this.roomMesh.add(faceMesh);
 
-        // 2. KANTEN (dick und hell)
         const edges = new THREE.EdgesGeometry(boxGeometry);
         const edgeMaterial = new THREE.LineBasicMaterial({
             color: 0xff0000,
@@ -196,21 +202,15 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
         this.roomMesh.add(edgeLines);
 
-        // 3. ECKEN-MARKER
         this.addCornerMarkers(this.roomMesh);
-
-        // 4. WAND-MARKER
         this.addWallLabels(this.roomMesh);
 
-        // Raum positionieren (zentriert)
+        // Raum NICHT rotieren - bleibt achsenparallel!
         this.roomMesh.position.set(
             this.roomParams.width / 2,
             this.roomParams.height / 2,
             this.roomParams.depth / 2
         );
-
-        // ROTATION anwenden
-        this.applyRoomRotation();
 
         this.scene.add(this.roomMesh);
     }
@@ -250,7 +250,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
 
         const markerGeometry = new THREE.PlaneGeometry(0.3, 0.3);
 
-        // Vorderwand (rot)
         const frontMarker = new THREE.Mesh(
             markerGeometry,
             new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })
@@ -258,7 +257,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         frontMarker.position.set(0, 0, -d / 2 - 0.1);
         group.add(frontMarker);
 
-        // Rückwand (grün)
         const backMarker = new THREE.Mesh(
             markerGeometry,
             new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide })
@@ -266,7 +264,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         backMarker.position.set(0, 0, d / 2 + 0.1);
         group.add(backMarker);
 
-        // Linke Wand (blau)
         const leftMarker = new THREE.Mesh(
             markerGeometry,
             new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide })
@@ -275,7 +272,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         leftMarker.rotation.y = Math.PI / 2;
         group.add(leftMarker);
 
-        // Rechte Wand (cyan)
         const rightMarker = new THREE.Mesh(
             markerGeometry,
             new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide })
@@ -283,16 +279,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         rightMarker.position.set(w / 2 + 0.1, 0, 0);
         rightMarker.rotation.y = Math.PI / 2;
         group.add(rightMarker);
-    }
-
-    private applyRoomRotation() {
-        if (!this.roomMesh) return;
-
-        const xRad = THREE.MathUtils.degToRad(this.roomRotation.x);
-        const yRad = THREE.MathUtils.degToRad(this.roomRotation.y);
-        const zRad = THREE.MathUtils.degToRad(this.roomRotation.z);
-
-        this.roomMesh.rotation.set(xRad, yRad, zRad);
     }
 
     private createGrid() {
@@ -337,19 +323,30 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         if (this.showGrid) {
             this.createGrid();
         }
-
-        if (this.controls) {
-            this.controls.target.set(
-                params.width / 2,
-                params.height / 2,
-                params.depth / 2
-            );
-        }
+        // Kamera-Transform bleibt unverändert!
     }
 
     public updateRoomRotation(rotation: RoomRotation) {
         this.roomRotation = rotation;
-        this.applyRoomRotation();
+        this.updateCameraTransform();
+    }
+
+    public updateCameraPosition(position: { x: number; y: number; z: number }) {
+        this.cameraPosition = position;
+        this.updateCameraTransform();
+    }
+
+    public updateBackgroundRotation(rotation: number) {
+        this.backgroundRotation = rotation;
+    }
+
+    public updateBackgroundScale(scale: number) {
+        this.backgroundScale = scale;
+    }
+
+    public updateBackgroundOffset(x: number, y: number) {
+        this.backgroundOffsetX = x;
+        this.backgroundOffsetY = y;
     }
 
     public updateBackground(file: File) {
