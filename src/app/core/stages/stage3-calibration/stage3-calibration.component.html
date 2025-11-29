@@ -2,16 +2,12 @@
   <mat-card>
     <mat-card-header>
       <mat-card-subtitle>
-        Screenshot {{ currentStepIndex + 1 }} von {{ calibrationSteps.length }}
+        Screenshot {{ currentStepIndex + 1 }} / {{ calibrationSteps.length }} ·
+        {{ completedCount }} kalibriert
       </mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
-      <p class="instructions">
-        Passe die Raum-Dimensionen, Kamera-Position und Rotation an, bis die roten Linien mit den
-        Raumkanten im Hintergrund übereinstimmen.
-      </p>
-
       <!-- SCREENSHOT-NAVIGATION -->
       <div class="screenshot-navigation">
         <button
@@ -24,13 +20,109 @@
         >
           <mat-icon *ngIf="step.completed">check_circle</mat-icon>
           <mat-icon *ngIf="!step.completed">radio_button_unchecked</mat-icon>
-          Screenshot {{ i + 1 }}
+          {{ i + 1 }}
         </button>
       </div>
 
-      <!-- ZWEI-SPALTEN-LAYOUT -->
-      <div class="two-column-layout">
-        <!-- LINKE SPALTE: 3D Viewer -->
+      <!-- DREI-SPALTEN-LAYOUT -->
+      <div class="three-column-layout">
+        <!-- LINKE SPALTE: Screenshot-Anpassungen -->
+        <div class="left-column">
+          <!-- Screenshot-Rotation -->
+          <div class="control-group">
+            <h3>Screenshot Rotation</h3>
+            <div class="slider-row">
+              <mat-icon class="slider-icon" matTooltip="Rotation">rotate_right</mat-icon>
+              <mat-slider min="0" max="360" step="1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentBackgroundRotation"
+                  (ngModelChange)="onBackgroundRotationChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentBackgroundRotation }}°</span>
+            </div>
+          </div>
+
+          <!-- Screenshot-Größe & Position -->
+          <div class="control-group">
+            <h3>Screenshot Anpassung</h3>
+
+            <div class="slider-row">
+              <mat-icon class="slider-icon" matTooltip="Größe">photo_size_select_large</mat-icon>
+              <mat-slider
+                min="10"
+                max="200"
+                step="1"
+                [disabled]="masterBackgroundScale !== undefined && completedCount > 0"
+              >
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentBackgroundScale"
+                  (ngModelChange)="onBackgroundScaleChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentBackgroundScale }}%</span>
+              <mat-icon
+                *ngIf="masterBackgroundScale !== undefined && completedCount > 0"
+                matTooltip="Fixiert"
+              >
+                lock
+              </mat-icon>
+            </div>
+
+            <div class="slider-row">
+              <mat-icon class="slider-icon" matTooltip="Horizontal">swap_horiz</mat-icon>
+              <mat-slider min="0" max="100" step="1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentBackgroundOffsetX"
+                  (ngModelChange)="onBackgroundOffsetChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentBackgroundOffsetX }}%</span>
+            </div>
+
+            <div class="slider-row">
+              <mat-icon class="slider-icon" matTooltip="Vertikal">swap_vert</mat-icon>
+              <mat-slider min="0" max="100" step="1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentBackgroundOffsetY"
+                  (ngModelChange)="onBackgroundOffsetChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentBackgroundOffsetY }}%</span>
+            </div>
+
+            <div
+              *ngIf="
+                masterBackgroundScale &&
+                currentBackgroundScale !== masterBackgroundScale &&
+                completedCount > 0
+              "
+              class="info-message-compact info-tip"
+            >
+              <mat-icon>warning</mat-icon>
+              <span>Empfohlen: {{ masterBackgroundScale }}% (Basis)</span>
+            </div>
+          </div>
+
+          <!-- Anzeige-Optionen -->
+          <div class="control-group">
+            <h3>Anzeige</h3>
+            <mat-checkbox [(ngModel)]="showGrid" (ngModelChange)="onToggleGrid()">
+              Boden-Grid
+            </mat-checkbox>
+
+            <div class="info-message-compact" style="margin-top: 6px">
+              <mat-icon>mouse</mat-icon>
+              <span>Mausrad = Zoom (nicht gespeichert)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- MITTLERE SPALTE: 3D Viewer -->
         <div class="viewer-column">
           <app-three-viewer
             #viewer
@@ -47,70 +139,22 @@
           </app-three-viewer>
         </div>
 
-        <!-- RECHTE SPALTE: Controls -->
-        <div class="controls-column">
-          <!-- Raum-Dimensionen -->
-          <div class="control-group">
-            <h3>Raum-Dimensionen (global)</h3>
-
-            <div class="slider-row">
-              <label>Breite:</label>
-              <mat-slider min="2" max="15" step="0.1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentRoomParams.width"
-                  (ngModelChange)="onRoomChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentRoomParams.width.toFixed(1) }}m</span>
-            </div>
-
-            <div class="slider-row">
-              <label>Tiefe:</label>
-              <mat-slider min="2" max="15" step="0.1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentRoomParams.depth"
-                  (ngModelChange)="onRoomChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentRoomParams.depth.toFixed(1) }}m</span>
-            </div>
-
-            <div class="slider-row">
-              <label>Höhe:</label>
-              <mat-slider min="2" max="5" step="0.1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentRoomParams.height"
-                  (ngModelChange)="onRoomChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentRoomParams.height.toFixed(1) }}m</span>
-            </div>
-
-            <div *ngIf="currentStepIndex > 0" class="info-message-compact info-tip">
-              <mat-icon>lightbulb</mat-icon>
-              <span>Verfeinere die Dimensionen basierend auf diesem Screenshot</span>
-            </div>
-          </div>
-
-          <mat-divider></mat-divider>
-
+        <!-- RECHTE SPALTE: Kamera-Einstellungen -->
+        <div class="right-column">
           <!-- Kamera-Position -->
           <div class="control-group">
-            <div style="display: flex; justify-content: space-between; align-items: center">
-              <h3>Kamera-Position im Raum</h3>
+            <div class="control-header">
+              <h3>Kamera Position</h3>
               <mat-checkbox
                 [(ngModel)]="lockCameraPosition"
-                matTooltip="Kamera-Position für alle Screenshots fixieren"
+                matTooltip="Für alle Screenshots fixieren"
               >
-                Fixieren
+                Fix
               </mat-checkbox>
             </div>
 
             <div class="slider-row">
-              <label>Links ↔ Rechts:</label>
+              <label>X:</label>
               <mat-slider
                 min="0"
                 [max]="currentRoomParams.width"
@@ -127,7 +171,7 @@
             </div>
 
             <div class="slider-row">
-              <label>Hoch ↔ Runter:</label>
+              <label>Y:</label>
               <mat-slider
                 min="0"
                 [max]="currentRoomParams.height"
@@ -144,7 +188,7 @@
             </div>
 
             <div class="slider-row">
-              <label>Vor ↔ Zurück:</label>
+              <label>Z:</label>
               <mat-slider
                 min="0"
                 [max]="currentRoomParams.depth"
@@ -166,17 +210,16 @@
               style="background: #e3f2fd"
             >
               <mat-icon>lock</mat-icon>
-              <span>Position fixiert für alle Screenshots</span>
+              <span>Fixiert für alle</span>
             </div>
           </div>
 
-          <mat-divider></mat-divider>
-
+          <!-- Kamera-Rotation -->
           <div class="control-group">
-            <h3>Kamera-Rotation</h3>
+            <h3>Kamera Rotation</h3>
 
             <div class="slider-row">
-              <label>X-Achse:</label>
+              <label>X:</label>
               <mat-slider min="-180" max="180" step="1">
                 <input
                   matSliderThumb
@@ -188,7 +231,7 @@
             </div>
 
             <div class="slider-row">
-              <label>Y-Achse:</label>
+              <label>Y:</label>
               <mat-slider min="-180" max="180" step="1">
                 <input
                   matSliderThumb
@@ -200,7 +243,7 @@
             </div>
 
             <div class="slider-row">
-              <label>Z-Achse:</label>
+              <label>Z:</label>
               <mat-slider min="-180" max="180" step="1">
                 <input
                   matSliderThumb
@@ -211,116 +254,56 @@
               <span class="value">{{ currentRoomRotation.z }}°</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          <mat-divider></mat-divider>
-
-          <!-- Screenshot-Rotation -->
-          <div class="control-group">
-            <h3>Screenshot-Rotation</h3>
-
-            <div class="slider-row">
-              <label>Drehen:</label>
-              <mat-slider min="0" max="360" step="1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentBackgroundRotation"
-                  (ngModelChange)="onBackgroundRotationChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentBackgroundRotation }}°</span>
-            </div>
+      <!-- RAUM-DIMENSIONEN (GLOBAL) - HORIZONTAL BAR -->
+      <div class="room-dimensions-bar">
+        <h3>Raum-Dimensionen (global)</h3>
+        <div class="room-slider-group">
+          <div class="room-slider-item">
+            <label>B:</label>
+            <mat-slider min="2" max="15" step="0.1">
+              <input
+                matSliderThumb
+                [(ngModel)]="currentRoomParams.width"
+                (ngModelChange)="onRoomChange()"
+              />
+            </mat-slider>
+            <span class="value">{{ currentRoomParams.width.toFixed(1) }}m</span>
           </div>
 
-          <mat-divider></mat-divider>
-
-          <!-- Screenshot-Größe & Position -->
-          <div class="control-group">
-            <h3>Screenshot-Anpassung</h3>
-
-            <div class="slider-row">
-              <label>Größe (Focal Length):</label>
-              <mat-slider
-                min="10"
-                max="200"
-                step="1"
-                [disabled]="masterBackgroundScale !== undefined && completedCount > 0"
-              >
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentBackgroundScale"
-                  (ngModelChange)="onBackgroundScaleChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentBackgroundScale }}%</span>
-              <mat-icon
-                *ngIf="masterBackgroundScale !== undefined && completedCount > 0"
-                matTooltip="Größe fixiert (feste Focal Length)"
-              >
-                lock
-              </mat-icon>
-            </div>
-
-            <div class="slider-row">
-              <label>Horizontal:</label>
-              <mat-slider min="0" max="100" step="1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentBackgroundOffsetX"
-                  (ngModelChange)="onBackgroundOffsetChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentBackgroundOffsetX }}%</span>
-            </div>
-
-            <div class="slider-row">
-              <label>Vertikal:</label>
-              <mat-slider min="0" max="100" step="1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentBackgroundOffsetY"
-                  (ngModelChange)="onBackgroundOffsetChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentBackgroundOffsetY }}%</span>
-            </div>
-
-            <div
-              *ngIf="
-                masterBackgroundScale &&
-                currentBackgroundScale !== masterBackgroundScale &&
-                completedCount > 0
-              "
-              class="info-message-compact info-tip"
-            >
-              <mat-icon>warning</mat-icon>
-              <span>Empfehlung: Größe sollte {{ masterBackgroundScale }}% sein (wie Basis)</span>
-            </div>
+          <div class="room-slider-item">
+            <label>T:</label>
+            <mat-slider min="2" max="15" step="0.1">
+              <input
+                matSliderThumb
+                [(ngModel)]="currentRoomParams.depth"
+                (ngModelChange)="onRoomChange()"
+              />
+            </mat-slider>
+            <span class="value">{{ currentRoomParams.depth.toFixed(1) }}m</span>
           </div>
 
-          <mat-divider></mat-divider>
-
-          <!-- Anzeige-Optionen -->
-          <div class="control-group">
-            <h3>Anzeige</h3>
-            <mat-checkbox [(ngModel)]="showGrid" (ngModelChange)="onToggleGrid()">
-              Boden-Grid
-            </mat-checkbox>
-
-            <div class="info-message-compact" style="margin-top: 10px">
-              <mat-icon>mouse</mat-icon>
-              <span>Mausrad zum Zoomen (nur UI, wird nicht gespeichert)</span>
-            </div>
+          <div class="room-slider-item">
+            <label>H:</label>
+            <mat-slider min="2" max="5" step="0.1">
+              <input
+                matSliderThumb
+                [(ngModel)]="currentRoomParams.height"
+                (ngModelChange)="onRoomChange()"
+              />
+            </mat-slider>
+            <span class="value">{{ currentRoomParams.height.toFixed(1) }}m</span>
           </div>
         </div>
       </div>
 
-      <!-- Progress-Bar -->
+      <!-- PROGRESS BAR -->
       <div class="calibration-progress">
         <div class="progress-header">
           <h3>Fortschritt</h3>
-          <span class="progress-text"
-            >{{ completedCount }} von {{ calibrationSteps.length }} Screenshots kalibriert</span
-          >
+          <span class="progress-text">{{ completedCount }} / {{ calibrationSteps.length }}</span>
         </div>
         <mat-progress-bar
           mode="determinate"
@@ -328,28 +311,20 @@
           [color]="progressPercentage === 100 ? 'primary' : 'accent'"
         >
         </mat-progress-bar>
-        <div class="progress-details">
-          <div *ngFor="let step of calibrationSteps; let i = index" class="progress-step">
-            <mat-icon [color]="step.completed ? 'primary' : ''">
-              {{ step.completed ? 'check_circle' : 'radio_button_unchecked' }}
-            </mat-icon>
-            <span [class.completed]="step.completed">Screenshot {{ i + 1 }}</span>
-          </div>
-        </div>
       </div>
     </mat-card-content>
 
     <mat-card-actions align="end">
       <button mat-button (click)="onBack()">
         <mat-icon>arrow_back</mat-icon>
-        Zurück zu Übersicht
+        Zurück
       </button>
 
       <div class="spacer"></div>
 
       <button mat-raised-button color="accent" (click)="onSaveCurrentScreenshot()">
         <mat-icon>save</mat-icon>
-        Aktuellen Screenshot speichern
+        Speichern
       </button>
 
       <button
@@ -359,7 +334,7 @@
         (click)="onFinishCalibration()"
       >
         <mat-icon>done_all</mat-icon>
-        Kalibrierung abschließen ({{ completedCount }}/{{ calibrationSteps.length }})
+        Abschließen ({{ completedCount }}/{{ calibrationSteps.length }})
       </button>
     </mat-card-actions>
   </mat-card>
