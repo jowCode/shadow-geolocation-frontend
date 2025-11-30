@@ -29,12 +29,55 @@ export class StateService {
 
   state$ = this.state.asObservable();
 
+  constructor() {
+    // Session-ID aus localStorage laden (falls vorhanden)
+    this.loadSessionFromStorage();
+  }
+
+  private loadSessionFromStorage() {
+    const storedSessionId = localStorage.getItem('shadowgeo_session_id');
+    const storedProjectName = localStorage.getItem('shadowgeo_project_name');
+
+    if (storedSessionId) {
+      console.log('📂 Session aus localStorage geladen:', storedSessionId);
+      this.updateState({
+        sessionId: storedSessionId,
+        projectName: storedProjectName || null
+      });
+    }
+  }
+
   setSessionId(sessionId: string) {
+    // Im Memory speichern
     this.updateState({ sessionId });
+
+    // AUCH in localStorage speichern!
+    localStorage.setItem('shadowgeo_session_id', sessionId);
+    console.log('💾 Session-ID gespeichert:', sessionId);
   }
 
   setProjectName(projectName: string) {
+    // Im Memory speichern
     this.updateState({ projectName });
+
+    // AUCH in localStorage speichern!
+    localStorage.setItem('shadowgeo_project_name', projectName);
+  }
+
+  clearSession() {
+    // Memory löschen
+    this.updateState({
+      sessionId: null,
+      projectName: null,
+      screenshotFiles: [],
+      calibrationData: null,
+      shadowData: null
+    });
+
+    // localStorage löschen
+    localStorage.removeItem('shadowgeo_session_id');
+    localStorage.removeItem('shadowgeo_project_name');
+    console.log('🗑️  Session gelöscht');
   }
 
   // NEU: Screenshots als Files speichern

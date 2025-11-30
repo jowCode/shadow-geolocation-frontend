@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 export class ApiService {
   private baseUrl = 'http://localhost:8000/api';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   createSession(projectName: string, cameraType: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/session/create`, {
@@ -15,14 +15,21 @@ export class ApiService {
     });
   }
 
-  uploadScreenshot(sessionId: string, file: File): Observable<any> {
+  uploadScreenshot(sessionId: string, screenshotId: string, file: File): Observable<any> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post(`${this.baseUrl}/session/${sessionId}/upload`, formData);
+    return this.http.post(
+      `${this.baseUrl}/session/${sessionId}/upload-screenshot?screenshot_id=${screenshotId}`,
+      formData
+    );
   }
 
   saveCalibration(sessionId: string, data: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/session/${sessionId}/calibration`, data);
+  }
+
+  loadCalibration(sessionId: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/session/${sessionId}/calibration`);
   }
 
   saveShadows(sessionId: string, data: any): Observable<any> {

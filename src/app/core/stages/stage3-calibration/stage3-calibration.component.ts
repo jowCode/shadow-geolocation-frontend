@@ -17,6 +17,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ThreeViewerComponent, RoomParams, RoomRotation } from '../../shared/three-viewer/three-viewer.component';
 import { StateService } from '../../services/state.service';
+import { ApiService } from '../../services/api.service';
 import { BundleAdjustmentService, BundleAdjustmentRequest, BundleAdjustmentProgress } from '../../services/bundle-adjustment.service';
 import { BundleAdjustmentDialogComponent, BundleAdjustmentDialogData } from '../../shared/bundle-adjustment-dialog/bundle-adjustment-dialog.component';
 
@@ -79,8 +80,12 @@ export class Stage3CalibrationComponent implements OnInit {
   // Bundle Adjustment State
   isOptimizing = false;
 
+  // Session ID
+  sessionId: string | null = null;
+
   constructor(
     private stateService: StateService,
+    private apiService: ApiService,
     private router: Router,
     private snackBar: MatSnackBar,
     private bundleAdjustmentService: BundleAdjustmentService,
@@ -88,6 +93,15 @@ export class Stage3CalibrationComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    const state = this.stateService.getCurrentState();
+    this.sessionId = state.sessionId;
+
+    if (!this.sessionId) {
+      alert('Keine Session gefunden!');
+      this.router.navigate(['/stage1-setup']);
+      return;
+    }
+
     const screenshotFiles = this.stateService.getScreenshotFiles();
     const calibrationScreenshots = screenshotFiles.filter(s => s.forCalibration);
 
@@ -97,13 +111,14 @@ export class Stage3CalibrationComponent implements OnInit {
       return;
     }
 
+    // Calibration Steps initialisieren
     this.calibrationSteps = calibrationScreenshots.map(s => ({
       screenshot: {
         id: s.id,
         file: s.file
       },
       cameraPosition: { x: 2, y: 1.5, z: 3 },
-      roomRotation: { x: 0, y: 0, z: 0 }, // z bleibt immer 0
+      roomRotation: { x: 0, y: 0, z: 0 },
       backgroundRotation: 0,
       backgroundScale: 50,
       backgroundOffsetX: 50,
@@ -112,6 +127,68 @@ export class Stage3CalibrationComponent implements OnInit {
     }));
 
     console.log('Kalibrierung gestartet mit', this.calibrationSteps.length, 'Screenshots');
+
+    // Versuche gespeicherte Kalibrierung zu laden
+    this.loadSavedCalibration();
+  }
+
+  async loadSavedCalibration() {
+    if (!this.sessionId) return;
+
+    try {
+      const response = await this.apiService.loadCalibration(this.sessionId).toPromise();
+
+      if (response.status === 'found' && response.data) {
+        console.log('📂 Gespeicherte Kalibrierung gefunden!');
+
+        const data = response.data;
+
+        // Globale Parameter laden
+        if (data.room) {
+          this.currentRoomParams = data.room;
+        }
+
+        if (data.masterFocalLength) {
+          this.currentBackgroundScale = data.masterFocalLength;
+        }
+
+        if (data.globalCameraPosition) {
+          this.currentCameraPosition = data.globalCameraPosition;
+          this.lockCameraPosition = true;
+        } else {
+          this.lockCameraPosition = false;
+        }
+
+        // Screenshot-Daten laden
+        if (data.screenshots && Array.isArray(data.screenshots)) {
+          data.screenshots.forEach((saved: any) => {
+            const step = this.calibrationSteps.find(s => s.screenshot.id === saved.id);
+            if (step) {
+              step.cameraPosition = saved.cameraPosition || step.cameraPosition;
+              step.roomRotation = saved.roomRotation || step.roomRotation;
+              step.backgroundRotation = saved.backgroundRotation ?? step.backgroundRotation;
+              step.backgroundScale = saved.backgroundScale ?? step.backgroundScale;
+              step.backgroundOffsetX = saved.backgroundOffsetX ?? step.backgroundOffsetX;
+              step.backgroundOffsetY = saved.backgroundOffsetY ?? step.backgroundOffsetY;
+              step.completed = saved.completed ?? false;
+            }
+          });
+        }
+
+        // UI aktualisieren
+        this.goToScreenshot(0);
+
+        this.snackBar.open(
+          `Gespeicherte Kalibrierung geladen (${this.completedCount} Screenshots)`,
+          '',
+          { duration: 3000 }
+        );
+      } else {
+        console.log('ℹ️  Keine gespeicherte Kalibrierung gefunden');
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der Kalibrierung:', err);
+    }
   }
 
   get currentStep(): CalibrationStep | undefined {
@@ -155,7 +232,7 @@ export class Stage3CalibrationComponent implements OnInit {
     this.viewer?.toggleGrid(this.showGrid);
   }
 
-  onSaveCurrentScreenshot() {
+  async onSaveCurrentScreenshot() {
     if (this.currentStep) {
       this.currentStep.cameraPosition = { ...this.currentCameraPosition };
       this.currentStep.roomRotation = { ...this.currentRoomRotation };
@@ -164,6 +241,9 @@ export class Stage3CalibrationComponent implements OnInit {
       this.currentStep.backgroundOffsetX = this.currentBackgroundOffsetX;
       this.currentStep.backgroundOffsetY = this.currentBackgroundOffsetY;
       this.currentStep.completed = true;
+
+      // Auch ins Backend speichern
+      await this.saveToBackend();
 
       this.snackBar.open(
         `Screenshot ${this.currentStepIndex + 1} gespeichert ✓`,
@@ -174,6 +254,39 @@ export class Stage3CalibrationComponent implements OnInit {
           verticalPosition: 'bottom'
         }
       );
+    }
+  }
+
+  async saveToBackend() {
+    if (!this.sessionId) return;
+
+    try {
+      // Setze globalen Scale für alle
+      this.calibrationSteps.forEach(step => {
+        step.backgroundScale = this.currentBackgroundScale;
+      });
+
+      const calibrationData = {
+        room: this.currentRoomParams,
+        globalCameraPosition: this.lockCameraPosition ? this.currentCameraPosition : null,
+        masterFocalLength: this.currentBackgroundScale,
+        screenshots: this.calibrationSteps.map(step => ({
+          id: step.screenshot.id,
+          cameraPosition: step.cameraPosition,
+          roomRotation: step.roomRotation,
+          backgroundRotation: step.backgroundRotation,
+          backgroundScale: step.backgroundScale,
+          backgroundOffsetX: step.backgroundOffsetX,
+          backgroundOffsetY: step.backgroundOffsetY,
+          completed: step.completed
+        }))
+      };
+
+      await this.apiService.saveCalibration(this.sessionId, calibrationData).toPromise();
+      console.log('💾 Kalibrierung ins Backend gespeichert');
+    } catch (err) {
+      console.error('Fehler beim Speichern:', err);
+      this.snackBar.open('Fehler beim Speichern ins Backend', '', { duration: 3000 });
     }
   }
 
@@ -224,7 +337,7 @@ export class Stage3CalibrationComponent implements OnInit {
 
   async onStartOptimization() {
     // Letzten Stand speichern
-    this.onSaveCurrentScreenshot();
+    await this.onSaveCurrentScreenshot();
 
     const completedSteps = this.calibrationSteps.filter(s => s.completed);
 
@@ -373,9 +486,9 @@ export class Stage3CalibrationComponent implements OnInit {
     });
   }
 
-  onFinishCalibration() {
+  async onFinishCalibration() {
     // Letzten Stand speichern
-    this.onSaveCurrentScreenshot();
+    await this.onSaveCurrentScreenshot();
 
     const completedSteps = this.calibrationSteps.filter(s => s.completed);
 
