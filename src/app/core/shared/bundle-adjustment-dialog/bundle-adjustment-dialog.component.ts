@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -8,34 +8,37 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 
 export interface BundleAdjustmentDialogData {
-    progress: number;
-    message: string;
-    iteration: number;
-    result?: {
-        optimized_room: { width: number; depth: number; height: number };
-        optimized_camera: { x: number; y: number; z: number } | null;
-        initial_error: number;
-        final_error: number;
-        improvement_percent: number;
-        iterations: number;
-        success: boolean;
-    };
-    error?: string;
+  progress: number;
+  message: string;
+  iteration: number;
+  result?: {
+    optimized_room: { width: number; depth: number; height: number };
+    optimized_camera: { x: number; y: number; z: number } | null;
+    initial_error: number;
+    final_error: number;
+    improvement_percent: number;
+    iterations: number;
+    success: boolean;
+    positions_variance_before?: number;  // ← NEU!
+    positions_variance_after?: number;   // ← NEU!
+    variance_reduction_percent?: number; // ← NEU!
+  };
+  error?: string;
 }
 
 @Component({
-    selector: 'app-bundle-adjustment-dialog',
-    standalone: true,
-    imports: [
-        CommonModule,
-        MatDialogModule,
-        MatProgressBarModule,
-        MatProgressSpinnerModule,
-        MatIconModule,
-        MatButtonModule,
-        MatDividerModule,
-    ],
-    template: `
+  selector: 'app-bundle-adjustment-dialog',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatProgressBarModule,
+    MatProgressSpinnerModule,
+    MatIconModule,
+    MatButtonModule,
+    MatDividerModule,
+  ],
+  template: `
     <h2 mat-dialog-title>
       <mat-icon [class.spinning]="!data.result && !data.error">autorenew</mat-icon>
       Bundle Adjustment
@@ -71,27 +74,47 @@ export interface BundleAdjustmentDialogData {
           <h3>Optimierung erfolgreich!</h3>
         </div>
 
-        <div class="result-stats">
-          <div class="stat-item">
-            <span class="stat-label">Verbesserung:</span>
-            <span class="stat-value success">{{ data.result.improvement_percent.toFixed(1) }}%</span>
+      <div class="result-stats">
+        <!-- Positions-Varianz (WICHTIGSTE Metrik!) -->
+        <div class="stat-item highlight" *ngIf="data.result.positions_variance_before !== undefined">
+          <span class="stat-label">Positions-Varianz:</span>
+          <div class="variance-comparison">
+            <div class="variance-before">
+              <span class="label">Vorher:</span>
+              <span class="value">{{ data.result.positions_variance_before.toFixed(3) }}m</span>
+            </div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="variance-after">
+              <span class="label">Nachher:</span>
+              <span class="value success">{{ data.result.positions_variance_after?.toFixed(3) }}m</span>
+            </div>
           </div>
-
-          <div class="stat-item">
-            <span class="stat-label">Start-Fehler:</span>
-            <span class="stat-value">{{ data.result.initial_error.toFixed(4) }}</span>
-          </div>
-
-          <div class="stat-item">
-            <span class="stat-label">End-Fehler:</span>
-            <span class="stat-value">{{ data.result.final_error.toFixed(4) }}</span>
-          </div>
-
-          <div class="stat-item">
-            <span class="stat-label">Iterationen:</span>
-            <span class="stat-value">{{ data.result.iterations }}</span>
+          <div class="variance-reduction" *ngIf="data.result.variance_reduction_percent !== undefined">
+            <mat-icon class="check-icon">check_circle</mat-icon>
+            <span>{{ data.result.variance_reduction_percent.toFixed(1) }}% Reduktion</span>
           </div>
         </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Verbesserung:</span>
+          <span class="stat-value success">{{ data.result.improvement_percent.toFixed(1) }}%</span>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Start-Fehler:</span>
+          <span class="stat-value">{{ data.result.initial_error.toFixed(4) }}</span>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">End-Fehler:</span>
+          <span class="stat-value">{{ data.result.final_error.toFixed(4) }}</span>
+        </div>
+
+        <div class="stat-item">
+          <span class="stat-label">Iterationen:</span>
+          <span class="stat-value">{{ data.result.iterations }}</span>
+        </div>
+      </div>
 
         <mat-divider></mat-divider>
 
@@ -160,8 +183,8 @@ export interface BundleAdjustmentDialogData {
       </button>
     </mat-dialog-actions>
   `,
-    styles: [
-        `
+  styles: [
+    `
       h2 {
         display: flex;
         align-items: center;
@@ -333,12 +356,79 @@ export interface BundleAdjustmentDialogData {
       mat-dialog-actions button {
         margin-left: 10px;
       }
+
+      .stat-item.highlight {
+        grid-column: 1 / -1;
+        background: #e8f5e9;
+        border: 2px solid #4caf50;
+      }
+
+      .variance-comparison {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-top: 10px;
+      }
+
+      .variance-before,
+      .variance-after {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .variance-comparison .label {
+        font-size: 11px;
+        color: #666;
+      }
+
+      .variance-comparison .value {
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .variance-comparison mat-icon {
+        color: #666;
+      }
+
+      .variance-reduction {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        padding: 8px;
+        background: #c8e6c9;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #2e7d32;
+      }
+
+      .variance-reduction .check-icon {
+        color: #2e7d32;
+      }
     `,
-    ],
+  ],
 })
 export class BundleAdjustmentDialogComponent {
-    constructor(
-        public dialogRef: MatDialogRef<BundleAdjustmentDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) public data: BundleAdjustmentDialogData
-    ) { }
+  constructor(
+    public dialogRef: MatDialogRef<BundleAdjustmentDialogComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: BundleAdjustmentDialogData,
+    private cdr: ChangeDetectorRef  // ← NEU!
+  ) {
+    // Auto-Update alle 100ms (für flüssige Progress-Anzeige)
+    const interval = setInterval(() => {
+      this.cdr.detectChanges();
+
+      // Stoppe Interval wenn Dialog geschlossen oder Ergebnis da ist
+      if (this.data.result || this.data.error) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    // Cleanup wenn Dialog geschlossen wird
+    this.dialogRef.afterClosed().subscribe(() => {
+      clearInterval(interval);
+    });
+  }
 }

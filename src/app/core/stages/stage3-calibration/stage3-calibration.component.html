@@ -276,6 +276,54 @@
           [color]="progressPercentage === 100 ? 'primary' : 'accent'"
         >
         </mat-progress-bar>
+
+        <!-- OPTIMIERUNGS-EINSTELLUNGEN -->
+        <mat-expansion-panel class="optimization-panel">
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <mat-icon>tune</mat-icon>
+              Optimierungs-Einstellungen
+            </mat-panel-title>
+          </mat-expansion-panel-header>
+
+          <div class="optimization-content">
+            <h4>Wie sicher bist du bei deinen Schätzungen?</h4>
+            <p class="hint">
+              <mat-icon>info</mat-icon>
+              Niedriger Wert = Parameter wird stärker optimiert
+            </p>
+
+            <div class="confidence-sliders">
+              <div class="slider-row">
+                <label>Raum-Dimensionen:</label>
+                <span class="confidence-label left">unsicher</span>
+                <mat-slider min="0" max="1" step="0.1" class="confidence-slider">
+                  <input matSliderThumb [(ngModel)]="roomConfidence" />
+                </mat-slider>
+                <span class="confidence-label right">sicher</span>
+                <span class="value">{{ roomConfidence }}</span>
+              </div>
+
+              <div class="slider-row">
+                <label>Kamera-Position:</label>
+                <span class="confidence-label left">unsicher</span>
+                <mat-slider min="0" max="1" step="0.1" class="confidence-slider">
+                  <input matSliderThumb [(ngModel)]="positionConfidence" />
+                </mat-slider>
+                <span class="confidence-label right">sicher</span>
+                <span class="value">{{ positionConfidence }}</span>
+              </div>
+            </div>
+
+            <div class="info-box">
+              <mat-icon>lightbulb</mat-icon>
+              <p>
+                Die Optimierung findet EINE globale Kamera-Position, die für alle Screenshots passt
+                (nur mit unterschiedlicher Rotation).
+              </p>
+            </div>
+          </div>
+        </mat-expansion-panel>
       </div>
     </mat-card-content>
 

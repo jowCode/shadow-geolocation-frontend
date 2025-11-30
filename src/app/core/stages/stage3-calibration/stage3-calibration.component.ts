@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,6 +14,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatExpansionModule } from '@angular/material/expansion';
 
 import { ThreeViewerComponent, RoomParams, RoomRotation } from '../../shared/three-viewer/three-viewer.component';
 import { StateService } from '../../services/state.service';
@@ -51,7 +52,8 @@ interface CalibrationStep {
     MatProgressBarModule,
     MatSnackBarModule,
     MatDialogModule,
-    ThreeViewerComponent
+    ThreeViewerComponent,
+    MatExpansionModule,
   ],
   templateUrl: "./stage3-calibration.component.html",
   styleUrls: ["./stage3-calibration.component.scss"]
@@ -80,6 +82,10 @@ export class Stage3CalibrationComponent implements OnInit {
   // Bundle Adjustment State
   isOptimizing = false;
 
+  // Confidence Settings
+  roomConfidence = 0.5;
+  positionConfidence = 0.3;  // Default: Position unsicher
+
   // Session ID
   sessionId: string | null = null;
 
@@ -89,10 +95,11 @@ export class Stage3CalibrationComponent implements OnInit {
     private router: Router,
     private snackBar: MatSnackBar,
     private bundleAdjustmentService: BundleAdjustmentService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private cdr: ChangeDetectorRef
   ) { }
 
-  ngOnInit() {
+  async ngOnInit() {
     const state = this.stateService.getCurrentState();
     this.sessionId = state.sessionId;
 
@@ -102,34 +109,84 @@ export class Stage3CalibrationComponent implements OnInit {
       return;
     }
 
-    const screenshotFiles = this.stateService.getScreenshotFiles();
-    const calibrationScreenshots = screenshotFiles.filter(s => s.forCalibration);
+    // ORGANISATION AUS BACKEND LADEN
+    try {
+      const orgResponse = await this.apiService.loadOrganization(this.sessionId).toPromise();
 
-    if (calibrationScreenshots.length < 3) {
-      alert('Mindestens 3 Screenshots für Kalibrierung erforderlich!');
+      if (orgResponse.status === 'found' && orgResponse.data) {
+        console.log('📂 Organization geladen');
+
+        const screenshots = orgResponse.data.screenshots || [];
+        const calibrationScreenshots = screenshots.filter((s: any) => s.forCalibration);
+
+        if (calibrationScreenshots.length < 3) {
+          alert('Mindestens 3 Screenshots für Kalibrierung erforderlich!');
+          this.router.navigate(['/stage2-organize']);
+          return;
+        }
+
+        // Screenshots als URL-Referenzen laden (nicht als Files!)
+        this.calibrationSteps = await Promise.all(
+          calibrationScreenshots.map(async (s: any) => {
+            // Screenshot vom Backend als Blob laden
+            const url = this.apiService.getScreenshotUrl(this.sessionId!, `${s.id}.png`);
+            const blob = await fetch(url).then(r => r.blob());
+            const file = new File([blob], s.filename || `${s.id}.png`, { type: 'image/png' });
+
+            return {
+              screenshot: {
+                id: s.id,
+                file: file
+              },
+              cameraPosition: { x: 2, y: 1.5, z: 3 },
+              roomRotation: { x: 0, y: 0, z: 0 },
+              backgroundRotation: 0,
+              backgroundScale: 50,
+              backgroundOffsetX: 50,
+              backgroundOffsetY: 50,
+              completed: false
+            };
+          })
+        );
+
+        console.log('Kalibrierung gestartet mit', this.calibrationSteps.length, 'Screenshots');
+        this.cdr.detectChanges();
+        // Versuche gespeicherte Kalibrierung zu laden
+        await this.loadSavedCalibration();
+
+      } else {
+        // Fallback: Aus StateService laden (wenn direkt von Stage 2 kommend)
+        const screenshotFiles = this.stateService.getScreenshotFiles();
+        const calibrationScreenshots = screenshotFiles.filter(s => s.forCalibration);
+
+        if (calibrationScreenshots.length < 3) {
+          alert('Mindestens 3 Screenshots für Kalibrierung erforderlich!');
+          this.router.navigate(['/stage2-organize']);
+          return;
+        }
+
+        this.calibrationSteps = calibrationScreenshots.map(s => ({
+          screenshot: {
+            id: s.id,
+            file: s.file
+          },
+          cameraPosition: { x: 2, y: 1.5, z: 3 },
+          roomRotation: { x: 0, y: 0, z: 0 },
+          backgroundRotation: 0,
+          backgroundScale: 50,
+          backgroundOffsetX: 50,
+          backgroundOffsetY: 50,
+          completed: false
+        }));
+
+        console.log('Kalibrierung gestartet mit', this.calibrationSteps.length, 'Screenshots (aus Memory)');
+        this.cdr.detectChanges();
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der Organization:', err);
+      alert('Fehler beim Laden der Screenshots. Bitte zurück zu Stage 2.');
       this.router.navigate(['/stage2-organize']);
-      return;
     }
-
-    // Calibration Steps initialisieren
-    this.calibrationSteps = calibrationScreenshots.map(s => ({
-      screenshot: {
-        id: s.id,
-        file: s.file
-      },
-      cameraPosition: { x: 2, y: 1.5, z: 3 },
-      roomRotation: { x: 0, y: 0, z: 0 },
-      backgroundRotation: 0,
-      backgroundScale: 50,
-      backgroundOffsetX: 50,
-      backgroundOffsetY: 50,
-      completed: false
-    }));
-
-    console.log('Kalibrierung gestartet mit', this.calibrationSteps.length, 'Screenshots');
-
-    // Versuche gespeicherte Kalibrierung zu laden
-    this.loadSavedCalibration();
   }
 
   async loadSavedCalibration() {
@@ -183,6 +240,7 @@ export class Stage3CalibrationComponent implements OnInit {
           '',
           { duration: 3000 }
         );
+        this.cdr.detectChanges();
       } else {
         console.log('ℹ️  Keine gespeicherte Kalibrierung gefunden');
       }
@@ -393,7 +451,11 @@ export class Stage3CalibrationComponent implements OnInit {
         background_offset_x: step.backgroundOffsetX,
         background_offset_y: step.backgroundOffsetY,
         completed: step.completed
-      }))
+      })),
+      weights: {  // ← NEU!
+        room_confidence: this.roomConfidence,
+        position_confidence: this.positionConfidence
+      }
     };
 
     // Dialog öffnen

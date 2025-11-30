@@ -24,6 +24,10 @@ export class ApiService {
     );
   }
 
+  loadOrganization(sessionId: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/session/${sessionId}/organize`);
+  }
+
   saveCalibration(sessionId: string, data: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/session/${sessionId}/calibration`, data);
   }

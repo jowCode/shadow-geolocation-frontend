@@ -16,6 +16,9 @@ export interface BundleAdjustmentProgress {
         iterations: number;
         success: boolean;
         message: string;
+        positions_variance_before?: number;     // ← NEU!
+        positions_variance_after?: number;      // ← NEU!
+        variance_reduction_percent?: number;    // ← NEU!
     };
 }
 
@@ -34,6 +37,10 @@ export interface BundleAdjustmentRequest {
         background_offset_y: number;
         completed: boolean;
     }>;
+    weights?: {  // ← NEU!
+        room_confidence: number;
+        position_confidence: number;
+    };
 }
 
 @Injectable({ providedIn: 'root' })

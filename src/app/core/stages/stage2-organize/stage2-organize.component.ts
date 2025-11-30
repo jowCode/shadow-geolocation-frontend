@@ -12,6 +12,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { StateService } from '../../services/state.service';
+import { ApiService } from '../../services/api.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface ScreenshotItem {
   id: string;
@@ -298,9 +300,11 @@ export class Stage2OrganizeComponent implements OnInit {
 
   constructor(
     private stateService: StateService,
+    private apiService: ApiService,
     private sanitizer: DomSanitizer,
-    private router: Router
-  ) {}
+    private router: Router,
+    private snackBar: MatSnackBar
+  ) { }
 
   ngOnInit() {
     const state = this.stateService.getCurrentState();
@@ -426,7 +430,7 @@ export class Stage2OrganizeComponent implements OnInit {
     this.router.navigate(['/stage1-setup']);
   }
 
-  onNext() {
+  async onNext() {
     // Alles im State updaten
     this.screenshots.forEach((s) => {
       this.stateService.updateScreenshotFile(s.id, {
@@ -435,6 +439,56 @@ export class Stage2OrganizeComponent implements OnInit {
         timestamp: s.timestamp,
       });
     });
+
+    const state = this.stateService.getCurrentState();
+    const sessionId = state.sessionId;
+
+    if (!sessionId) {
+      alert('Keine Session gefunden!');
+      return;
+    }
+
+    // SCREENSHOTS INS BACKEND HOCHLADEN
+    console.log('📤 Lade Screenshots ins Backend hoch...');
+
+    try {
+      const uploadPromises = this.screenshots.map(async (s) => {
+        try {
+          await this.apiService.uploadScreenshot(sessionId, s.id, s.file).toPromise();
+          console.log(`✅ Screenshot ${s.id} hochgeladen`);
+        } catch (err) {
+          console.error(`❌ Fehler beim Hochladen von ${s.id}:`, err);
+        }
+      });
+
+      await Promise.all(uploadPromises);
+
+      // ORGANIZATION SPEICHERN
+      const organizationData = {
+        screenshots: this.screenshots.map(s => ({
+          id: s.id,
+          filename: s.file.name,
+          forCalibration: s.forCalibration,
+          forShadows: s.forShadows,
+          timestamp: s.timestamp,
+          timestampType: s.timestampType
+        }))
+      };
+
+      await this.apiService.saveOrganization(sessionId, organizationData).toPromise();
+      console.log('💾 Organization gespeichert');
+
+      this.snackBar.open(
+        `${this.screenshots.length} Screenshots hochgeladen`,
+        '',
+        { duration: 2000 }
+      );
+
+    } catch (err) {
+      console.error('Fehler beim Hochladen:', err);
+      alert('Fehler beim Hochladen der Screenshots. Bitte nochmal versuchen.');
+      return;
+    }
 
     // Weiter zu Stage 3
     this.router.navigate(['/stage3-calibration']);
