@@ -117,7 +117,7 @@ export class Stage3CalibrationComponent implements OnInit {
         console.log('📂 Organization geladen');
 
         const screenshots = orgResponse.data.screenshots || [];
-        const calibrationScreenshots = screenshots.filter((s: any) => s.forCalibration);
+        const calibrationScreenshots = screenshots.filter((s: any) => s.useForCalibration);
 
         if (calibrationScreenshots.length < 3) {
           alert('Mindestens 3 Screenshots für Kalibrierung erforderlich!');
@@ -548,7 +548,7 @@ export class Stage3CalibrationComponent implements OnInit {
     });
   }
 
-  async onFinishCalibration() {
+  async onProceedToShadows() {
     // Letzten Stand speichern
     await this.onSaveCurrentScreenshot();
 
@@ -557,15 +557,6 @@ export class Stage3CalibrationComponent implements OnInit {
     if (completedSteps.length < 2) {
       alert('Bitte kalibriere mindestens 2 Screenshots!\n\nAktueller Stand: ' +
         completedSteps.length + ' von ' + this.calibrationSteps.length);
-      return;
-    }
-
-    const confirm = window.confirm(
-      `Kalibrierung mit ${completedSteps.length} von ${this.calibrationSteps.length} Screenshots abschließen?\n\n` +
-      `Nicht kalibrierte Screenshots werden ignoriert.`
-    );
-
-    if (!confirm) {
       return;
     }
 
@@ -590,10 +581,13 @@ export class Stage3CalibrationComponent implements OnInit {
       }))
     };
 
+    // In State & Backend speichern
     this.stateService.getCurrentState().calibrationData = calibrationData;
+    await this.apiService.saveCalibration(this.sessionId!, calibrationData).toPromise();
 
-    console.log('Kalibrierung abgeschlossen:', calibrationData);
+    console.log('Kalibrierung abgeschlossen, weiter zu Schatten-Markierung');
 
+    // Weiter zu Stage 5
     this.router.navigate(['/stage5-shadows']);
   }
 

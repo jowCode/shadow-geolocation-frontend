@@ -19,7 +19,7 @@ interface ScreenshotItem {
   id: string;
   file: File;
   previewUrl: SafeUrl;
-  forCalibration: boolean;
+  useForCalibration: boolean;
   forShadows: boolean;
   timestamp: string;
   timestampType: 'reference' | 'offset';
@@ -72,16 +72,15 @@ interface ScreenshotItem {
                 <!-- Einstellungen -->
                 <div class="screenshot-settings">
                   <div class="checkboxes">
-                    <mat-checkbox [(ngModel)]="item.forCalibration">
-                      Für Raum-Kalibrierung
+                    <mat-checkbox [(ngModel)]="item.useForCalibration">
+                      Für Kalibrierung & Schatten verwenden
                     </mat-checkbox>
-                    <mat-checkbox [(ngModel)]="item.forShadows">
-                      Für Schatten-Markierung
-                    </mat-checkbox>
+
+
                   </div>
 
                   <!-- Zeitstempel (nur wenn für Schatten) -->
-                  <div *ngIf="item.forShadows" class="timestamp-section">
+                  <div class="timestamp-section">
                     <mat-divider></mat-divider>
                     <h4>Zeitstempel</h4>
 
@@ -142,11 +141,8 @@ interface ScreenshotItem {
                 <mat-icon>photo_camera</mat-icon>
                 <span>{{ calibrationCount }} Screenshots für Raum-Kalibrierung</span>
               </div>
-              <div class="summary-item">
-                <mat-icon>wb_sunny</mat-icon>
-                <span>{{ shadowCount }} Screenshots für Schatten (Zeitspanne: {{ timeSpan }})</span>
-              </div>
-              <div class="summary-item" *ngIf="!hasReferencePoint && shadowCount > 0">
+
+              <div class="summary-item" *ngIf="!hasReferencePoint">
                 <mat-icon color="warn">warning</mat-icon>
                 <span class="warning">Kein Referenzpunkt (t0) definiert!</span>
               </div>
@@ -322,7 +318,7 @@ export class Stage2OrganizeComponent implements OnInit {
       id: sf.id,
       file: sf.file,
       previewUrl: this.createPreviewUrl(sf.file),
-      forCalibration: sf.forCalibration,
+      useForCalibration: sf.forCalibration,
       forShadows: sf.forShadows,
       timestamp: sf.timestamp || '',
       timestampType: sf.timestamp === 't0' ? ('reference' as const) : ('offset' as const),
@@ -395,19 +391,16 @@ export class Stage2OrganizeComponent implements OnInit {
   }
 
   get calibrationCount(): number {
-    return this.screenshots.filter((s) => s.forCalibration).length;
+    return this.screenshots.filter((s) => s.useForCalibration).length;
   }
 
-  get shadowCount(): number {
-    return this.screenshots.filter((s) => s.forShadows).length;
-  }
 
   get hasReferencePoint(): boolean {
-    return this.screenshots.some((s) => s.forShadows && s.timestampType === 'reference');
+    return this.screenshots.some((s) => s.timestampType === 'reference');
   }
 
   get timeSpan(): string {
-    const shadowScreenshots = this.screenshots.filter((s) => s.forShadows);
+    const shadowScreenshots = this.screenshots.filter((s) => s.useForCalibration);
     if (shadowScreenshots.length === 0) return '0 min';
 
     const offsets = shadowScreenshots.map((s) => s.offsetSeconds);
@@ -421,8 +414,7 @@ export class Stage2OrganizeComponent implements OnInit {
 
   get canProceed(): boolean {
     return (
-      this.calibrationCount >= 3 &&
-      (this.shadowCount === 0 || (this.shadowCount > 0 && this.hasReferencePoint))
+      this.calibrationCount >= 3
     );
   }
 
@@ -431,11 +423,11 @@ export class Stage2OrganizeComponent implements OnInit {
   }
 
   async onNext() {
-    // Alles im State updaten
+    // Alles im State updaten - BEIDE FLAGS setzen!
     this.screenshots.forEach((s) => {
       this.stateService.updateScreenshotFile(s.id, {
-        forCalibration: s.forCalibration,
-        forShadows: s.forShadows,
+        forCalibration: s.useForCalibration,  // ← Für Raum-Kalibrierung
+        forShadows: s.useForCalibration,      // ← Für Schatten (gleicher Wert!)
         timestamp: s.timestamp,
       });
     });
@@ -463,13 +455,11 @@ export class Stage2OrganizeComponent implements OnInit {
 
       await Promise.all(uploadPromises);
 
-      // ORGANIZATION SPEICHERN
       const organizationData = {
         screenshots: this.screenshots.map(s => ({
           id: s.id,
           filename: s.file.name,
-          forCalibration: s.forCalibration,
-          forShadows: s.forShadows,
+          useForCalibration: s.useForCalibration,
           timestamp: s.timestamp,
           timestampType: s.timestampType
         }))

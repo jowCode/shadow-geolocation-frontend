@@ -351,13 +351,13 @@
       </button>
 
       <button
-        mat-stroked-button
+        mat-raised-button
         color="primary"
         [disabled]="completedCount < 2"
-        (click)="onFinishCalibration()"
+        (click)="onProceedToShadows()"
       >
-        <mat-icon>skip_next</mat-icon>
-        Ohne Optimierung weiter
+        <mat-icon>wb_sunny</mat-icon>
+        Weiter zur Schatten-Markierung
       </button>
     </mat-card-actions>
   </mat-card>
