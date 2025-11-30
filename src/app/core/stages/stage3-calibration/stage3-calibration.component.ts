@@ -13,9 +13,12 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ThreeViewerComponent, RoomParams, RoomRotation } from '../../shared/three-viewer/three-viewer.component';
 import { StateService } from '../../services/state.service';
+import { BundleAdjustmentService, BundleAdjustmentRequest, BundleAdjustmentProgress } from '../../services/bundle-adjustment.service';
+import { BundleAdjustmentDialogComponent, BundleAdjustmentDialogData } from '../../shared/bundle-adjustment-dialog/bundle-adjustment-dialog.component';
 
 interface CalibrationStep {
   screenshot: {
@@ -46,6 +49,7 @@ interface CalibrationStep {
     MatChipsModule,
     MatProgressBarModule,
     MatSnackBarModule,
+    MatDialogModule,
     ThreeViewerComponent
   ],
   templateUrl: "./stage3-calibration.component.html",
@@ -72,10 +76,15 @@ export class Stage3CalibrationComponent implements OnInit {
   showGrid = true;
   lockCameraPosition = false;
 
+  // Bundle Adjustment State
+  isOptimizing = false;
+
   constructor(
     private stateService: StateService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private bundleAdjustmentService: BundleAdjustmentService,
+    private dialog: MatDialog
   ) { }
 
   ngOnInit() {
@@ -213,6 +222,157 @@ export class Stage3CalibrationComponent implements OnInit {
     }
   }
 
+  async onStartOptimization() {
+    // Letzten Stand speichern
+    this.onSaveCurrentScreenshot();
+
+    const completedSteps = this.calibrationSteps.filter(s => s.completed);
+
+    if (completedSteps.length < 2) {
+      alert('Bitte kalibriere mindestens 2 Screenshots!\n\nAktueller Stand: ' +
+        completedSteps.length + ' von ' + this.calibrationSteps.length);
+      return;
+    }
+
+    const confirm = window.confirm(
+      `Bundle Adjustment mit ${completedSteps.length} von ${this.calibrationSteps.length} Screenshots starten?\n\n` +
+      `Dies optimiert automatisch die Raum-Dimensionen und Kamera-Position.`
+    );
+
+    if (!confirm) {
+      return;
+    }
+
+    // WICHTIG: Setze den globalen Scale-Wert für ALLE Screenshots
+    this.calibrationSteps.forEach(step => {
+      step.backgroundScale = this.currentBackgroundScale;
+    });
+
+    // Request vorbereiten
+    const state = this.stateService.getCurrentState();
+    const request: BundleAdjustmentRequest = {
+      session_id: state.sessionId || '',
+      room: {
+        width: this.currentRoomParams.width,
+        depth: this.currentRoomParams.depth,
+        height: this.currentRoomParams.height
+      },
+      global_camera_position: this.lockCameraPosition ? {
+        x: this.currentCameraPosition.x,
+        y: this.currentCameraPosition.y,
+        z: this.currentCameraPosition.z
+      } : null,
+      master_focal_length: this.currentBackgroundScale,
+      screenshots: this.calibrationSteps.map(step => ({
+        id: step.screenshot.id,
+        camera_position: {
+          x: step.cameraPosition.x,
+          y: step.cameraPosition.y,
+          z: step.cameraPosition.z
+        },
+        room_rotation: {
+          x: step.roomRotation.x,
+          y: step.roomRotation.y,
+          z: step.roomRotation.z
+        },
+        background_rotation: step.backgroundRotation,
+        background_scale: step.backgroundScale,
+        background_offset_x: step.backgroundOffsetX,
+        background_offset_y: step.backgroundOffsetY,
+        completed: step.completed
+      }))
+    };
+
+    // Dialog öffnen
+    const dialogData: BundleAdjustmentDialogData = {
+      progress: 0,
+      message: 'Initialisiere...',
+      iteration: 0
+    };
+
+    const dialogRef = this.dialog.open(BundleAdjustmentDialogComponent, {
+      width: '600px',
+      disableClose: true,
+      data: dialogData
+    });
+
+    this.isOptimizing = true;
+
+    // Bundle Adjustment starten
+    this.bundleAdjustmentService.runBundleAdjustment(request).subscribe({
+      next: (update: BundleAdjustmentProgress) => {
+        // Dialog-Daten aktualisieren
+        dialogData.progress = update.progress || 0;
+        dialogData.message = update.message || '';
+        dialogData.iteration = update.iteration || 0;
+
+        if (update.type === 'result' && update.result) {
+          dialogData.result = update.result;
+        } else if (update.type === 'error') {
+          dialogData.error = update.message || 'Unbekannter Fehler';
+        }
+      },
+      error: (err) => {
+        console.error('Bundle Adjustment Error:', err);
+        dialogData.error = 'Verbindungsfehler zum Backend';
+        this.isOptimizing = false;
+      },
+      complete: () => {
+        this.isOptimizing = false;
+      }
+    });
+
+    // Auf Dialog-Schließung warten
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // User hat "Übernehmen" geklickt
+        this.applyOptimizedValues(result);
+      }
+    });
+  }
+
+  applyOptimizedValues(result: any) {
+    // Raum-Dimensionen übernehmen
+    this.currentRoomParams = {
+      width: result.optimized_room.width,
+      depth: result.optimized_room.depth,
+      height: result.optimized_room.height
+    };
+
+    // Kamera-Position übernehmen (falls locked)
+    if (result.optimized_camera) {
+      this.currentCameraPosition = {
+        x: result.optimized_camera.x,
+        y: result.optimized_camera.y,
+        z: result.optimized_camera.z
+      };
+    }
+
+    // 3D-Viewer aktualisieren
+    this.viewer?.updateRoom(this.currentRoomParams);
+    this.viewer?.updateCameraPosition(this.currentCameraPosition);
+
+    this.snackBar.open(
+      `Optimierte Werte übernommen! Verbesserung: ${result.improvement_percent.toFixed(1)}%`,
+      '',
+      {
+        duration: 5000,
+        horizontalPosition: 'center',
+        verticalPosition: 'bottom'
+      }
+    );
+
+    // Alle Screenshots als "completed" markieren (da sie jetzt mit optimierten Werten passen)
+    this.calibrationSteps.forEach(step => {
+      if (step.completed) {
+        // Update Camera Position falls global locked
+        if (result.optimized_camera) {
+          step.cameraPosition = { ...result.optimized_camera };
+        }
+      }
+    });
+  }
+
   onFinishCalibration() {
     // Letzten Stand speichern
     this.onSaveCurrentScreenshot();
@@ -248,7 +408,7 @@ export class Stage3CalibrationComponent implements OnInit {
         cameraPosition: step.cameraPosition,
         roomRotation: step.roomRotation,
         backgroundRotation: step.backgroundRotation,
-        backgroundScale: step.backgroundScale, // Jetzt garantiert überall gleich
+        backgroundScale: step.backgroundScale,
         backgroundOffsetX: step.backgroundOffsetX,
         backgroundOffsetY: step.backgroundOffsetY,
         completed: step.completed

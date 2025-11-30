@@ -295,11 +295,21 @@
       <button
         mat-raised-button
         color="primary"
+        [disabled]="completedCount < 2 || isOptimizing"
+        (click)="onStartOptimization()"
+      >
+        <mat-icon>auto_fix_high</mat-icon>
+        Optimierung starten
+      </button>
+
+      <button
+        mat-stroked-button
+        color="primary"
         [disabled]="completedCount < 2"
         (click)="onFinishCalibration()"
       >
-        <mat-icon>done_all</mat-icon>
-        Abschließen ({{ completedCount }}/{{ calibrationSteps.length }})
+        <mat-icon>skip_next</mat-icon>
+        Ohne Optimierung weiter
       </button>
     </mat-card-actions>
   </mat-card>
