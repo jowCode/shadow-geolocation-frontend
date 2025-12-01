@@ -146,8 +146,25 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
           const orgItem = orgData.find((o: any) => o.id === s.id);
           const url = this.apiService.getScreenshotUrl(this.sessionId!, `${s.id}.png`);
 
-          // Lade Bild sofort
-          const img = await this.loadImage(url);
+          // Lade Blob nur EINMAL
+          const response = await fetch(url, {
+            credentials: 'include',  // ← WICHTIG für CORS!
+            mode: 'cors'
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to load screenshot ${s.id}: ${response.status}`);
+          }
+
+          const blob = await response.blob();
+
+          // Erstelle File aus Blob
+          const file = new File([blob], orgItem?.filename || `${s.id}.png`, {
+            type: 'image/png',
+          });
+
+          // Erstelle Image aus Blob
+          const img = await this.createImageFromBlob(blob);
 
           const calibration: CalibrationDataForScreenshot = {
             screenshotId: s.id,
@@ -155,17 +172,17 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
             cameraPosition: s.cameraPosition,
             cameraRotation: s.roomRotation,
             focalLength: calibrationData.masterFocalLength,
-            backgroundRotation: s.backgroundRotation || 0,
-            backgroundScale: s.backgroundScale || 50,
-            backgroundOffsetX: s.backgroundOffsetX || 50,
-            backgroundOffsetY: s.backgroundOffsetY || 50,
+            backgroundRotation: s.backgroundRotation ?? 0,
+            backgroundScale: s.backgroundScale ?? 50,
+            backgroundOffsetX: s.backgroundOffsetX ?? 50,
+            backgroundOffsetY: s.backgroundOffsetY ?? 50,
           };
 
-          console.log(`Screenshot ${s.id} Kalibrierung:`, calibration);
+          console.log(`✅ Screenshot ${s.id} geladen`);
 
           const screenshot: ScreenshotWithShadows = {
             id: s.id,
-            file: new File([await fetch(url).then(r => r.blob())], orgItem?.filename || `${s.id}.png`),
+            file: file,
             image: img,
             calibration: calibration,
             timestamp: orgItem?.timestamp || 't0+0',
@@ -176,18 +193,32 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
         })
       );
 
-      console.log('✅ Schatten-Markierung gestartet mit', this.screenshots.length, 'Screenshots');
+      console.log('✅ Alle Screenshots geladen:', this.screenshots.length);
     } catch (err) {
-      console.error('Fehler beim Laden:', err);
-      alert('Fehler beim Laden der Screenshots');
+      console.error('❌ Fehler beim Laden der Screenshots:', err);
+      alert('Fehler beim Laden der Screenshots: ' + (err as Error).message);
+      this.router.navigate(['/stage3-calibration']);
     }
   }
 
-  private loadImage(url: string): Promise<HTMLImageElement> {
+  /**
+   * Erstelle HTMLImageElement aus Blob
+   */
+  private createImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
       const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
+
+      img.onload = () => {
+        URL.revokeObjectURL(url); // Aufräumen!
+        resolve(img);
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image from blob'));
+      };
+
       img.src = url;
     });
   }
