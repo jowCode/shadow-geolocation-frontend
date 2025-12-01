@@ -89,6 +89,8 @@ export class Stage3CalibrationComponent implements OnInit {
   // Session ID
   sessionId: string | null = null;
 
+  private isInitialLoad = true;
+
   constructor(
     private stateService: StateService,
     private apiService: ApiService,
@@ -105,148 +107,112 @@ export class Stage3CalibrationComponent implements OnInit {
 
     if (!this.sessionId) {
       alert('Keine Session gefunden!');
-      this.router.navigate(['/stage1-setup']);
+      this.router.navigate(['/']);
       return;
     }
 
-    // ORGANISATION AUS BACKEND LADEN
     try {
+      // 1. Lade Backend-Daten
+      const calibResponse = await this.apiService.loadCalibration(this.sessionId).toPromise();
       const orgResponse = await this.apiService.loadOrganization(this.sessionId).toPromise();
 
-      if (orgResponse.status === 'found' && orgResponse.data) {
-        console.log('📂 Organization geladen');
+      const calibData = calibResponse?.data;
+      const orgData = orgResponse?.data?.screenshots || [];
 
-        const screenshots = orgResponse.data.screenshots || [];
-        const calibrationScreenshots = screenshots.filter((s: any) => s.useForCalibration);
+      // 2. Wenn Kalibrierung existiert, lade sie
+      if (calibData) {
+        this.currentRoomParams = calibData.room || { width: 5, depth: 5, height: 3 };
+        this.currentBackgroundScale = calibData.masterFocalLength || 50;
 
-        if (calibrationScreenshots.length < 3) {
-          alert('Mindestens 3 Screenshots für Kalibrierung erforderlich!');
-          this.router.navigate(['/stage2-organize']);
-          return;
+        if (calibData.globalCameraPosition) {
+          this.currentCameraPosition = calibData.globalCameraPosition;
+          this.lockCameraPosition = true;
         }
 
-        // Screenshots als URL-Referenzen laden (nicht als Files!)
+        // 3. CalibrationSteps MIT Backend-Daten initialisieren
+        const calibrationScreenshots = orgData.filter((o: any) => o.useForCalibration);
+
         this.calibrationSteps = await Promise.all(
-          calibrationScreenshots.map(async (s: any) => {
-            // Screenshot vom Backend als Blob laden
-            const url = this.apiService.getScreenshotUrl(this.sessionId!, `${s.id}.png`);
+          calibrationScreenshots.map(async (o: any) => {
+            const url = this.apiService.getScreenshotUrl(this.sessionId!, `${o.id}.png`);
             const blob = await fetch(url).then(r => r.blob());
-            const file = new File([blob], s.filename || `${s.id}.png`, { type: 'image/png' });
+            const file = new File([blob], o.filename, { type: 'image/png' });
+
+            // Suche gespeicherte Kalibrierung für diesen Screenshot
+            const savedCalib = calibData.screenshots?.find((s: any) => s.id === o.id);
+
+            if (savedCalib) {
+              console.log(`✅ Screenshot ${o.id}: Lade gespeicherte Kalibrierung`, savedCalib);
+              return {
+                screenshot: { id: o.id, file: file },
+                cameraPosition: savedCalib.cameraPosition || { x: 2, y: 1.5, z: 3 },
+                roomRotation: savedCalib.roomRotation || { x: 0, y: 0, z: 0 },
+                backgroundRotation: savedCalib.backgroundRotation ?? 0,
+                backgroundScale: savedCalib.backgroundScale ?? this.currentBackgroundScale,
+                backgroundOffsetX: savedCalib.backgroundOffsetX ?? 50,
+                backgroundOffsetY: savedCalib.backgroundOffsetY ?? 50,
+                completed: savedCalib.completed ?? false,
+              };
+            } else {
+              console.log(`ℹ️  Screenshot ${o.id}: Keine Kalibrierung gefunden, nutze Defaults`);
+              return {
+                screenshot: { id: o.id, file: file },
+                cameraPosition: { x: 2, y: 1.5, z: 3 },
+                roomRotation: { x: 0, y: 0, z: 0 },
+                backgroundRotation: 0,
+                backgroundScale: this.currentBackgroundScale,
+                backgroundOffsetX: 50,
+                backgroundOffsetY: 50,
+                completed: false,
+              };
+            }
+          })
+        );
+      } else {
+        // Keine Kalibrierung im Backend: Initialisiere neu
+        console.log('ℹ️  Keine Kalibrierung gefunden, initialisiere neu');
+
+        this.currentRoomParams = { width: 5, depth: 5, height: 3 };
+        this.currentBackgroundScale = 50;
+
+        const calibrationScreenshots = orgData.filter((o: any) => o.useForCalibration);
+
+        this.calibrationSteps = await Promise.all(
+          calibrationScreenshots.map(async (o: any) => {
+            const url = this.apiService.getScreenshotUrl(this.sessionId!, `${o.id}.png`);
+            const blob = await fetch(url).then(r => r.blob());
+            const file = new File([blob], o.filename, { type: 'image/png' });
 
             return {
-              screenshot: {
-                id: s.id,
-                file: file
-              },
+              screenshot: { id: o.id, file: file },
               cameraPosition: { x: 2, y: 1.5, z: 3 },
               roomRotation: { x: 0, y: 0, z: 0 },
               backgroundRotation: 0,
-              backgroundScale: 50,
+              backgroundScale: this.currentBackgroundScale,
               backgroundOffsetX: 50,
               backgroundOffsetY: 50,
-              completed: false
+              completed: false,
             };
           })
         );
-
-        console.log('Kalibrierung gestartet mit', this.calibrationSteps.length, 'Screenshots');
-        this.cdr.detectChanges();
-        // Versuche gespeicherte Kalibrierung zu laden
-        await this.loadSavedCalibration();
-
-      } else {
-        // Fallback: Aus StateService laden (wenn direkt von Stage 2 kommend)
-        const screenshotFiles = this.stateService.getScreenshotFiles();
-        const calibrationScreenshots = screenshotFiles.filter(s => s.forCalibration);
-
-        if (calibrationScreenshots.length < 3) {
-          alert('Mindestens 3 Screenshots für Kalibrierung erforderlich!');
-          this.router.navigate(['/stage2-organize']);
-          return;
-        }
-
-        this.calibrationSteps = calibrationScreenshots.map(s => ({
-          screenshot: {
-            id: s.id,
-            file: s.file
-          },
-          cameraPosition: { x: 2, y: 1.5, z: 3 },
-          roomRotation: { x: 0, y: 0, z: 0 },
-          backgroundRotation: 0,
-          backgroundScale: 50,
-          backgroundOffsetX: 50,
-          backgroundOffsetY: 50,
-          completed: false
-        }));
-
-        console.log('Kalibrierung gestartet mit', this.calibrationSteps.length, 'Screenshots (aus Memory)');
-        this.cdr.detectChanges();
       }
+
+      console.log('📋 Alle CalibrationSteps initialisiert:', this.calibrationSteps);
+
+      // 4. JETZT erst Viewer initialisieren
+      if (this.calibrationSteps.length > 0) {
+        await this.delay(100);
+        this.goToScreenshot(0);
+      }
+
     } catch (err) {
-      console.error('Fehler beim Laden der Organization:', err);
-      alert('Fehler beim Laden der Screenshots. Bitte zurück zu Stage 2.');
-      this.router.navigate(['/stage2-organize']);
+      console.error('❌ Fehler beim Laden:', err);
+      alert('Fehler beim Laden der Kalibrierung');
     }
   }
 
-  async loadSavedCalibration() {
-    if (!this.sessionId) return;
-
-    try {
-      const response = await this.apiService.loadCalibration(this.sessionId).toPromise();
-
-      if (response.status === 'found' && response.data) {
-        console.log('📂 Gespeicherte Kalibrierung gefunden!');
-
-        const data = response.data;
-
-        // Globale Parameter laden
-        if (data.room) {
-          this.currentRoomParams = data.room;
-        }
-
-        if (data.masterFocalLength) {
-          this.currentBackgroundScale = data.masterFocalLength;
-        }
-
-        if (data.globalCameraPosition) {
-          this.currentCameraPosition = data.globalCameraPosition;
-          this.lockCameraPosition = true;
-        } else {
-          this.lockCameraPosition = false;
-        }
-
-        // Screenshot-Daten laden
-        if (data.screenshots && Array.isArray(data.screenshots)) {
-          data.screenshots.forEach((saved: any) => {
-            const step = this.calibrationSteps.find(s => s.screenshot.id === saved.id);
-            if (step) {
-              step.cameraPosition = saved.cameraPosition || step.cameraPosition;
-              step.roomRotation = saved.roomRotation || step.roomRotation;
-              step.backgroundRotation = saved.backgroundRotation ?? step.backgroundRotation;
-              step.backgroundScale = saved.backgroundScale ?? step.backgroundScale;
-              step.backgroundOffsetX = saved.backgroundOffsetX ?? step.backgroundOffsetX;
-              step.backgroundOffsetY = saved.backgroundOffsetY ?? step.backgroundOffsetY;
-              step.completed = saved.completed ?? false;
-            }
-          });
-        }
-
-        // UI aktualisieren
-        this.goToScreenshot(0);
-
-        this.snackBar.open(
-          `Gespeicherte Kalibrierung geladen (${this.completedCount} Screenshots)`,
-          '',
-          { duration: 3000 }
-        );
-        this.cdr.detectChanges();
-      } else {
-        console.log('ℹ️  Keine gespeicherte Kalibrierung gefunden');
-      }
-    } catch (err) {
-      console.error('Fehler beim Laden der Kalibrierung:', err);
-    }
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   get currentStep(): CalibrationStep | undefined {
@@ -349,8 +315,8 @@ export class Stage3CalibrationComponent implements OnInit {
   }
 
   goToScreenshot(index: number) {
-    // Aktuellen Screenshot speichern
-    if (this.currentStep) {
+    // Aktuellen Screenshot speichern (ABER NICHT beim ersten Load!)
+    if (this.currentStep && !this.isInitialLoad) {
       this.currentStep.cameraPosition = { ...this.currentCameraPosition };
       this.currentStep.roomRotation = { ...this.currentRoomRotation };
       this.currentStep.backgroundRotation = this.currentBackgroundRotation;
@@ -363,23 +329,18 @@ export class Stage3CalibrationComponent implements OnInit {
 
     const newStep = this.calibrationSteps[index];
     if (newStep) {
-      // Kamera-Position: Wenn locked, nicht ändern
+      // Lade Werte AUS dem Step
       if (!this.lockCameraPosition || this.completedCount === 0) {
-        this.currentCameraPosition = newStep.cameraPosition
-          ? { ...newStep.cameraPosition }
-          : { x: 2, y: 1.5, z: 3 };
+        this.currentCameraPosition = { ...newStep.cameraPosition };
       }
 
-      this.currentRoomRotation = newStep.roomRotation
-        ? { ...newStep.roomRotation, z: 0 } // z immer auf 0 setzen
-        : { x: 0, y: 0, z: 0 };
-      this.currentBackgroundRotation = newStep.backgroundRotation ?? 0;
+      this.currentRoomRotation = { ...newStep.roomRotation, z: 0 };
+      this.currentBackgroundRotation = newStep.backgroundRotation;
+      this.currentBackgroundOffsetX = newStep.backgroundOffsetX;
+      this.currentBackgroundOffsetY = newStep.backgroundOffsetY;
 
-      // Background Scale: Der globale Wert bleibt, wird NICHT vom Step geladen
-      // currentBackgroundScale bleibt unverändert
-
-      this.currentBackgroundOffsetX = newStep.backgroundOffsetX ?? 50;
-      this.currentBackgroundOffsetY = newStep.backgroundOffsetY ?? 50;
+      // Background Scale bleibt global
+      // this.currentBackgroundScale bleibt unverändert
 
       setTimeout(() => {
         this.viewer?.updateBackground(newStep.screenshot.file);
@@ -391,6 +352,10 @@ export class Stage3CalibrationComponent implements OnInit {
         this.viewer?.updateBackgroundOffset(this.currentBackgroundOffsetX, this.currentBackgroundOffsetY);
       }, 100);
     }
+
+    // Nach dem ersten Load: Flag zurücksetzen
+    this.isInitialLoad = false;
+    this.cdr.detectChanges();
   }
 
   async onStartOptimization() {
