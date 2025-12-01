@@ -72,19 +72,6 @@
               <span class="value">{{ currentBackgroundOffsetY }}%</span>
             </div>
           </div>
-
-          <!-- Anzeige-Optionen -->
-          <div class="control-group">
-            <h3>Anzeige</h3>
-            <mat-checkbox [(ngModel)]="showGrid" (ngModelChange)="onToggleGrid()">
-              Boden-Grid
-            </mat-checkbox>
-
-            <div class="info-message-compact" style="margin-top: 6px">
-              <mat-icon>mouse</mat-icon>
-              <span>Mausrad = Zoom (nicht gespeichert)</span>
-            </div>
-          </div>
         </div>
 
         <!-- MITTLERE SPALTE: 3D Viewer -->
@@ -287,12 +274,6 @@
           </mat-expansion-panel-header>
 
           <div class="optimization-content">
-            <h4>Wie sicher bist du bei deinen Schätzungen?</h4>
-            <p class="hint">
-              <mat-icon>info</mat-icon>
-              Niedriger Wert = Parameter wird stärker optimiert
-            </p>
-
             <div class="confidence-sliders">
               <div class="slider-row">
                 <label>Raum-Dimensionen:</label>
@@ -313,14 +294,6 @@
                 <span class="confidence-label right">sicher</span>
                 <span class="value">{{ positionConfidence }}</span>
               </div>
-            </div>
-
-            <div class="info-box">
-              <mat-icon>lightbulb</mat-icon>
-              <p>
-                Die Optimierung findet EINE globale Kamera-Position, die für alle Screenshots passt
-                (nur mit unterschiedlicher Rotation).
-              </p>
             </div>
           </div>
         </mat-expansion-panel>
