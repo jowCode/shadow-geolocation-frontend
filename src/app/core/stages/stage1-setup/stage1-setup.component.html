@@ -1,0 +1,77 @@
+<div class="stage-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Neues Projekt erstellen</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <mat-form-field class="full-width">
+        <mat-label>Projekt-Name</mat-label>
+        <input matInput [(ngModel)]="projectName" placeholder="z.B. Test Video 001" />
+      </mat-form-field>
+
+      <div class="upload-section">
+        <h3>Screenshots hochladen</h3>
+        <div
+          class="dropzone"
+          [class.dragover]="isDragging"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="fileInput.click()"
+        >
+          <mat-icon>cloud_upload</mat-icon>
+          <p>Dateien hier ablegen oder klicken zum Auswählen</p>
+          <input
+            #fileInput
+            type="file"
+            multiple
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            style="display: none"
+          />
+        </div>
+
+        @if (files.length > 0) {
+        <div class="file-list">
+          <h4>Hochgeladene Screenshots: ({{ files.length }})</h4>
+          <div class="file-item" *ngFor="let file of files; let i = index">
+            <mat-icon>image</mat-icon>
+            <span>{{ file.name }}</span>
+            <span class="spacer"></span>
+            <button mat-icon-button (click)="removeFile(i)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+
+      <div class="camera-type-section">
+        <h3>Kamera-Typ</h3>
+        <mat-radio-group [(ngModel)]="cameraType">
+          <mat-radio-button value="static"> Statisch (nur Schwenk/Neigung) </mat-radio-button>
+        </mat-radio-group>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button
+        mat-raised-button
+        color="primary"
+        [disabled]="!canProceed || isLoading"
+        (click)="onNext()"
+      >
+        @if (isLoading) {
+        <mat-spinner diameter="20"></mat-spinner>
+        } @if (!isLoading) {<span>Weiter zu Screenshots</span>}
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  @if (error) {
+  <mat-card class="error-card">
+    <mat-card-content> <mat-icon color="warn">error</mat-icon> {{ error }} </mat-card-content>
+  </mat-card>
+  }
+</div>
