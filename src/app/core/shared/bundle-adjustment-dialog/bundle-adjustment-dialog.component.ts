@@ -232,7 +232,6 @@ export interface BundleAdjustmentDialogData {
         gap: 8px;
         margin-top: 15px;
         padding: 10px;
-        background: #f5f5f5;
         border-radius: 4px;
         font-size: 13px;
         color: #666;
@@ -249,7 +248,6 @@ export interface BundleAdjustmentDialogData {
         align-items: center;
         gap: 15px;
         padding: 20px;
-        background: #ffebee;
         border-radius: 4px;
       }
 
@@ -293,7 +291,6 @@ export interface BundleAdjustmentDialogData {
         justify-content: space-between;
         align-items: center;
         padding: 10px;
-        background: #f5f5f5;
         border-radius: 4px;
       }
 
@@ -333,7 +330,6 @@ export interface BundleAdjustmentDialogData {
         display: flex;
         flex-direction: column;
         padding: 8px;
-        background: #e3f2fd;
         border-radius: 4px;
       }
 
@@ -359,7 +355,6 @@ export interface BundleAdjustmentDialogData {
 
       .stat-item.highlight {
         grid-column: 1 / -1;
-        background: #e8f5e9;
         border: 2px solid #4caf50;
       }
 
@@ -397,7 +392,6 @@ export interface BundleAdjustmentDialogData {
         gap: 8px;
         margin-top: 10px;
         padding: 8px;
-        background: #c8e6c9;
         border-radius: 4px;
         font-size: 14px;
         font-weight: 600;

@@ -2,7 +2,6 @@
 
 @include mat.core();
 
-// Material 2 Dark Theme - Dunkleres Grau und Orange
 $m2-primary: mat.m2-define-palette(mat.$m2-blue-gray-palette, 800, 600, 900); // Dunkleres Grau
 $m2-accent: mat.m2-define-palette(mat.$m2-orange-palette, 500, 300, 700);
 $m2-warn: mat.m2-define-palette(mat.$m2-red-palette);
@@ -19,7 +18,6 @@ $light-theme: mat.m2-define-light-theme(
 
 @include mat.all-component-themes($light-theme);
 
-// Body & Global Styles
 html,
 body {
   font-family: Roboto, 'Helvetica Neue', sans-serif;
@@ -27,35 +25,6 @@ body {
   margin: 0;
 }
 
-body {
-  /*   background-color: #1e1e1e;
-  color: #e0e0e0; */
-}
-
-// SLIDER-FARBEN FIX - Orange statt blasses Teal/Blau
-/* mat-slider {
-  --mdc-slider-handle-color: #ff9800 !important; // Orange Handle
-  --mdc-slider-focus-handle-color: #ff9800 !important;
-  --mdc-slider-hover-handle-color: #ff9800 !important;
-  --mdc-slider-active-track-color: #ff9800 !important; // Orange aktiver Track
-  --mdc-slider-inactive-track-color: #616161 !important; // Dunkelgrau inaktiv
-  --mdc-slider-with-tick-marks-active-container-color: #ff9800 !important;
-  --mdc-slider-with-tick-marks-inactive-container-color: #616161 !important;
-} */
-
-// Nur für spezifische Upload-Bereiche mit weißem Hintergrund
-/* .upload-zone,
-.drop-zone,
-.file-upload-area {
-  color: rgba(0, 0, 0, 0.87) !important;
-
-  .upload-instructions,
-  .drop-hint {
-    color: rgba(0, 0, 0, 0.6) !important;
-  }
-} */
-
-// Utility Classes
 .full-width {
   width: 100%;
 }
