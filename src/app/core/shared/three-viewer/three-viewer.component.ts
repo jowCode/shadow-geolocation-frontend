@@ -15,6 +15,11 @@ export interface RoomRotation {
     y: number;
     z: number;
 }
+
+interface WallInfo {
+    name: 'back' | 'left' | 'right' | 'front' | 'floor';
+    plane: THREE.Plane;
+}
 @Component({
     selector: 'app-three-viewer',
     standalone: true,
@@ -307,6 +312,103 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         this.animationId = requestAnimationFrame(this.animate);
         this.controls?.update();
         this.renderer.render(this.scene, this.camera);
+    }
+
+    getWallAtScreenPosition(screenX: number, screenY: number): {
+        wall: 'back' | 'left' | 'right' | 'front' | 'floor' | null;
+        point3D: { x: number; y: number; z: number } | null;
+        point2D: { x: number; y: number } | null;
+    } {
+        const rect = this.renderer.domElement.getBoundingClientRect();
+
+        const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
+        const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+
+        const walls: WallInfo[] = [
+            { name: 'back', plane: new THREE.Plane(new THREE.Vector3(0, 0, -1), -this.roomParams.depth) },
+            { name: 'left', plane: new THREE.Plane(new THREE.Vector3(1, 0, 0), 0) },
+            { name: 'right', plane: new THREE.Plane(new THREE.Vector3(-1, 0, 0), -this.roomParams.width) },
+            { name: 'front', plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), 0) },
+            { name: 'floor', plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0) },
+        ];
+
+        // Berechne Intersections mit Distanzen
+        const intersections: Array<{ wall: WallInfo; point: THREE.Vector3; distance: number }> = [];
+
+        for (const wall of walls) {
+            const intersection = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(wall.plane, intersection)) {
+                if (this.isPointInWallBounds(intersection, wall.name)) {
+                    const distance = intersection.distanceTo(this.camera.position);
+                    intersections.push({ wall, point: intersection, distance });
+                }
+            }
+        }
+
+        // Finde nächste Intersection
+        if (intersections.length === 0) {
+            return { wall: null, point3D: null, point2D: null };
+        }
+
+        const closest = intersections.reduce((prev, curr) =>
+            curr.distance < prev.distance ? curr : prev
+        );
+
+        const point2D = this.project3DToScreen(closest.point);
+
+        return {
+            wall: closest.wall.name,
+            point3D: { x: closest.point.x, y: closest.point.y, z: closest.point.z },
+            point2D: point2D,
+        };
+    }
+
+
+    private isPointInWallBounds(point: THREE.Vector3, wallName: string): boolean {
+        const epsilon = 0.01;
+        const w = this.roomParams.width;
+        const h = this.roomParams.height;
+        const d = this.roomParams.depth;
+
+        switch (wallName) {
+            case 'back':
+                return point.x >= -epsilon && point.x <= w + epsilon &&
+                    point.y >= -epsilon && point.y <= h + epsilon;
+            case 'left':
+                return point.z >= -epsilon && point.z <= d + epsilon &&
+                    point.y >= -epsilon && point.y <= h + epsilon;
+            case 'right':
+                return point.z >= -epsilon && point.z <= d + epsilon &&
+                    point.y >= -epsilon && point.y <= h + epsilon;
+            case 'front':
+                return point.x >= -epsilon && point.x <= w + epsilon &&
+                    point.y >= -epsilon && point.y <= h + epsilon;
+            case 'floor':
+                return point.x >= -epsilon && point.x <= w + epsilon &&
+                    point.z >= -epsilon && point.z <= d + epsilon;
+            default:
+                return false;
+        }
+    }
+
+    private project3DToScreen(point3D: THREE.Vector3): { x: number; y: number } {
+        const projected = point3D.clone().project(this.camera);
+        const rect = this.renderer.domElement.getBoundingClientRect();
+
+        return {
+            x: ((projected.x + 1) / 2) * rect.width,
+            y: ((-projected.y + 1) / 2) * rect.height,
+        };
+    }
+
+    /**
+     * Hole aktuelles Canvas-Element (für Overlay-Positionierung)
+     */
+    getCanvasElement(): HTMLCanvasElement {
+        return this.renderer.domElement;
     }
 
     private onWindowResize() {

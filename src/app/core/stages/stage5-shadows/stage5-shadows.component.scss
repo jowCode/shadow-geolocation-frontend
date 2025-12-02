@@ -220,15 +220,15 @@ mat-expansion-panel.complete {
   margin: 2px 0;
 }
 
-// CENTER COLUMN
-.canvas-column {
+// VIEWER COLUMN
+.viewer-column {
   display: flex;
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
 }
 
-.canvas-controls {
+.viewer-controls {
   display: flex;
   gap: 20px;
   padding: 10px;
@@ -236,36 +236,46 @@ mat-expansion-panel.complete {
   border-radius: 4px;
 }
 
-.canvas-controls mat-slide-toggle {
+.viewer-controls mat-slide-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.canvas-controls mat-icon {
+.viewer-controls mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
 }
 
-.canvas-container {
+.viewer-container {
   position: relative;
   flex: 1;
   background: #0a0a0a;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
   min-height: 500px;
-  overflow: hidden; // WICHTIG für Zoom!
 }
 
-canvas {
-  max-width: 95%;
-  max-height: 95%;
-  border: 2px solid #333;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+// Three.js Viewer
+app-three-viewer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+// Overlay Canvas
+.overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   cursor: crosshair;
+  pointer-events: all;
+  z-index: 10;
 }
 
 // Instructions Overlay
@@ -284,7 +294,7 @@ canvas {
   font-size: 14px;
   font-weight: 500;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10;
+  z-index: 20;
   backdrop-filter: blur(4px);
 }
 
@@ -382,48 +392,6 @@ canvas {
 
 .objects-list::-webkit-scrollbar-thumb:hover {
   background: #555;
-}
-
-// Zoom Controls
-.zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  padding: 4px 8px;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-}
-
-.zoom-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  min-width: 45px;
-  text-align: center;
-}
-
-// Canvas mit Zoom
-canvas {
-  transition: none; // Kein Transition beim Zoomen!
-  cursor: crosshair;
-
-  &.panning {
-    cursor: grab;
-  }
-
-  &:active.panning {
-    cursor: grabbing;
-  }
-}
-
-// Zoom Hint
-.instructions.zoom-hint {
-  top: auto;
-  bottom: 20px;
-  background: rgba(0, 0, 0, 0.7);
-  font-size: 11px;
 }
 
 // Responsive
