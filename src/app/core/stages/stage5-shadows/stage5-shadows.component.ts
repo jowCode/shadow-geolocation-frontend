@@ -197,6 +197,21 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     return `${completeObjects} / 2 Objekte`;
   }
 
+  // ✅ Zeigt die NÄCHSTE Punktnummer an, nicht den aktuellen Stand
+  get currentPairNumber(): number {
+    if (!this.currentObject) return 0;
+    // Wenn gerade Schatten-Punkt erwartet wird, sind wir beim gleichen Paar
+    // Sonst beim nächsten Paar
+    return this.waitingForShadowPoint
+      ? this.currentObject.pairs.length + 1
+      : this.currentObject.pairs.length + 1;
+  }
+
+  get currentPairProgress(): string {
+    if (!this.currentObject) return '';
+    return `${this.currentPairNumber}/3`;
+  }
+
   goToScreenshot(index: number) {
     this.currentIndex = index;
     this.currentObjectIndex = -1;

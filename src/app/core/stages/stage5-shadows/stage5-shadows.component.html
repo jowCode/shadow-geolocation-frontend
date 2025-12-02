@@ -59,6 +59,7 @@
                   {{ obj.name }}
                 </mat-panel-title>
                 <mat-panel-description>
+                  <!-- ✅ BEHOBEN: Zeigt aktuellen Stand (was schon fertig ist) -->
                   {{ obj.pairs.length || 0 }} / 3 Punkte
                 </mat-panel-description>
               </mat-expansion-panel-header>
@@ -159,12 +160,14 @@
             <!-- Instructions -->
             <div class="instructions" *ngIf="currentObjectIndex >= 0 && !waitingForShadowPoint">
               <mat-icon>touch_app</mat-icon>
-              <span>Klicke auf Objekt-Punkt ({{ currentObject?.pairs?.length || 0 }}/3)</span>
+              <!-- ✅ BEHOBEN: Zeigt NÄCHSTEN Punkt (1/3 statt 0/3) -->
+              <span>Klicke auf Objekt-Punkt ({{ currentPairProgress }})</span>
             </div>
 
             <div class="instructions warning" *ngIf="waitingForShadowPoint">
               <mat-icon>touch_app</mat-icon>
-              <span>Klicke auf Schatten-Ende (auf Wand!)</span>
+              <!-- ✅ BEHOBEN: Zeigt aktuellen Punkt (beim Schatten-Klick) -->
+              <span>Klicke auf Schatten-Ende ({{ currentPairProgress }}) auf Wand!</span>
             </div>
 
             <div class="instructions error" *ngIf="currentObjectIndex < 0">
