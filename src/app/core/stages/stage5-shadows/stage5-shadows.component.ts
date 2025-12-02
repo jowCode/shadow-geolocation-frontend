@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -95,7 +95,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     public stateService: StateService,
     private apiService: ApiService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef  // ✅ HINZUGEFÜGT
   ) { }
 
   async ngOnInit() {
@@ -145,6 +146,9 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
       );
 
       console.log('✅ Schatten-Markierung gestartet mit', this.screenshots.length, 'Screenshots');
+
+      // ✅ WICHTIG: Change Detection nach async Operationen
+      this.cdr.detectChanges();
     } catch (err) {
       console.error('❌ Fehler beim Laden:', err);
       alert('Fehler beim Laden der Screenshots');
@@ -153,7 +157,11 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit() {
     if (this.screenshots.length > 0) {
-      setTimeout(() => this.loadScreenshot(0), 100);
+      setTimeout(() => {
+        this.loadScreenshot(0);
+        // ✅ Change Detection nach setTimeout
+        this.cdr.detectChanges();
+      }, 100);
     }
   }
 
@@ -194,10 +202,11 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     this.currentObjectIndex = -1;
     this.resetMarkingState();
     this.loadScreenshot(index);
+    // ✅ Update nach Screenshot-Wechsel
+    this.cdr.detectChanges();
   }
 
   loadScreenshot(index: number) {
-
     const screenshot = this.screenshots[index];
     if (!screenshot) return;
 
@@ -220,7 +229,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     setTimeout(() => {
       console.log('🔍 Viewer roomParams:', this.viewer?.roomParams);
       this.updateOverlayCanvas();
-
+      // ✅ KRITISCH: Change Detection nach Viewer-Update
+      this.cdr.detectChanges();
     }, 200);
   }
 
@@ -247,6 +257,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
 
     // Zeichne Markierungen
     this.drawMarkings();
+    // ✅ Update nach Canvas-Resize
+    this.cdr.detectChanges();
   }
 
   drawMarkings() {
@@ -365,6 +377,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
       };
       this.waitingForShadowPoint = true;
       this.drawMarkings();
+      // ✅ Update nach State-Änderung
+      this.cdr.detectChanges();
     } else {
       // Schatten-Punkt: Verwende Three.js Koordinaten für Raycasting!
       const hit = this.viewer.getWallAtScreenPosition(threeX, threeY);
@@ -400,6 +414,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
 
       this.resetMarkingState();
       this.drawMarkings();
+      // ✅ Update nach Markierung
+      this.cdr.detectChanges();
     }
   }
 
@@ -420,12 +436,16 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     this.currentScreenshot.objects.push(newObject);
     this.currentObjectIndex = this.currentScreenshot.objects.length - 1;
     this.snackBar.open(`${newObject.name} hinzugefügt`, '', { duration: 2000 });
+    // ✅ Update nach neuem Objekt
+    this.cdr.detectChanges();
   }
 
   onSelectObject(index: number) {
     this.currentObjectIndex = index;
     this.resetMarkingState();
     this.drawMarkings();
+    // ✅ Update nach Selektion
+    this.cdr.detectChanges();
   }
 
   onDeleteObject(index: number) {
@@ -441,6 +461,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
       }
       this.drawMarkings();
       this.snackBar.open('Objekt gelöscht', '', { duration: 2000 });
+      // ✅ Update nach Löschung
+      this.cdr.detectChanges();
     }
   }
 
@@ -449,6 +471,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     this.currentScreenshot.objects[objIndex].pairs.splice(pairIndex, 1);
     this.drawMarkings();
     this.snackBar.open('Punkt-Paar gelöscht', '', { duration: 2000 });
+    // ✅ Update nach Löschung
+    this.cdr.detectChanges();
   }
 
   async onSaveShadows() {
@@ -475,6 +499,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
       await this.apiService.saveShadows(this.sessionId, shadowData).toPromise();
       this.snackBar.open('Schatten-Daten gespeichert', '', { duration: 3000 });
       console.log('💾 Schatten-Daten gespeichert:', shadowData);
+      // ✅ Update nach Speichern
+      this.cdr.detectChanges();
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
       this.snackBar.open('Fehler beim Speichern', '', { duration: 3000 });
@@ -527,5 +553,7 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
 
   onToggleWireframe() {
     this.viewer?.toggleGrid(this.showRoomWireframe);
+    // ✅ Update nach Toggle
+    this.cdr.detectChanges();
   }
 }
