@@ -146,9 +146,10 @@
           <!-- Viewer Container mit Overlay -->
           <div class="viewer-container">
             <!-- Three.js Viewer (read-only) -->
+
             <app-three-viewer
               #viewer
-              [roomParams]="{ width: 5, depth: 5, height: 3 }"
+              [roomParams]="currentRoomParams"
               [showGrid]="showRoomWireframe"
             ></app-three-viewer>
 

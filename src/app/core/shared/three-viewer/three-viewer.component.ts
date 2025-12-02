@@ -321,8 +321,12 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     } {
         const rect = this.renderer.domElement.getBoundingClientRect();
 
+        console.log('Raycasting Input:', { screenX, screenY, rect });
+
         const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
         const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+        console.log('NDC:', { ndcX, ndcY });
 
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
@@ -335,20 +339,28 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
             { name: 'floor', plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0) },
         ];
 
-        // Berechne Intersections mit Distanzen
         const intersections: Array<{ wall: WallInfo; point: THREE.Vector3; distance: number }> = [];
 
         for (const wall of walls) {
             const intersection = new THREE.Vector3();
             if (raycaster.ray.intersectPlane(wall.plane, intersection)) {
-                if (this.isPointInWallBounds(intersection, wall.name)) {
-                    const distance = intersection.distanceTo(this.camera.position);
+                const inBounds = this.isPointInWallBounds(intersection, wall.name);
+                const distance = intersection.distanceTo(this.camera.position);
+
+                console.log(`Wall ${wall.name}:`, {
+                    intersection: { x: intersection.x, y: intersection.y, z: intersection.z },
+                    inBounds,
+                    distance
+                });
+
+                if (inBounds) {
                     intersections.push({ wall, point: intersection, distance });
                 }
             }
         }
 
-        // Finde nächste Intersection
+        console.log('Valid Intersections:', intersections.length);
+
         if (intersections.length === 0) {
             return { wall: null, point3D: null, point2D: null };
         }
@@ -359,6 +371,8 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
 
         const point2D = this.project3DToScreen(closest.point);
 
+        console.log('Closest Wall:', closest.wall.name, 'Point3D:', closest.point);
+
         return {
             wall: closest.wall.name,
             point3D: { x: closest.point.x, y: closest.point.y, z: closest.point.z },
@@ -368,10 +382,12 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
 
 
     private isPointInWallBounds(point: THREE.Vector3, wallName: string): boolean {
-        const epsilon = 0.01;
+        const epsilon = 0.5; // ← Von 0.01 auf 0.5 erhöht (50cm Toleranz)
         const w = this.roomParams.width;
         const h = this.roomParams.height;
         const d = this.roomParams.depth;
+
+        console.log(`Checking ${wallName}: point=(${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)}), room=(${w}, ${h}, ${d})`);
 
         switch (wallName) {
             case 'back':

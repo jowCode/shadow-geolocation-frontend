@@ -70,6 +70,8 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
   @ViewChild('viewer') viewer!: ThreeViewerComponent;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
 
+  currentRoomParams: RoomParams = { width: 5, depth: 5, height: 3 };
+
   screenshots: ScreenshotData[] = [];
   currentIndex = 0;
 
@@ -90,7 +92,7 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
   public Math = Math;
 
   constructor(
-    private stateService: StateService,
+    public stateService: StateService,
     private apiService: ApiService,
     private router: Router,
     private snackBar: MatSnackBar
@@ -107,6 +109,12 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     }
 
     const calibrationData = state.calibrationData;
+
+    if (calibrationData.room) {
+      this.currentRoomParams = calibrationData.room;
+      console.log('✅ Raum geladen:', this.currentRoomParams);
+    }
+
     const completedScreenshots = calibrationData.screenshots.filter((s: any) => s.completed);
 
     if (completedScreenshots.length === 0) {
@@ -189,14 +197,18 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
   }
 
   loadScreenshot(index: number) {
+
     const screenshot = this.screenshots[index];
     if (!screenshot) return;
 
     const calib = screenshot.calibration;
     const calibData = this.stateService.getCurrentState().calibrationData;
 
-    // Update Three.js Viewer
-    this.viewer?.updateRoom(calibData.room);
+    console.log('📐 Raum-Daten:', calibData.room);
+    console.log('📷 Kamera-Position:', calib.cameraPosition);
+
+    // Update Three.js Viewer mit ALLEN Parametern
+    this.viewer?.updateRoom(this.currentRoomParams);
     this.viewer?.updateCameraPosition(calib.cameraPosition);
     this.viewer?.updateRoomRotation(calib.roomRotation);
     this.viewer?.updateBackgroundRotation(calib.backgroundRotation);
@@ -204,8 +216,12 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     this.viewer?.updateBackgroundOffset(calib.backgroundOffsetX, calib.backgroundOffsetY);
     this.viewer?.updateBackground(screenshot.file);
 
-    // Overlay Canvas anpassen
-    setTimeout(() => this.updateOverlayCanvas(), 150);
+    // WICHTIG: Warte bis Viewer aktualisiert ist!
+    setTimeout(() => {
+      console.log('🔍 Viewer roomParams:', this.viewer?.roomParams);
+      this.updateOverlayCanvas();
+
+    }, 200);
   }
 
   updateOverlayCanvas() {
@@ -214,9 +230,20 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     const threeCanvas = this.viewer.getCanvasElement();
     const overlayCanvas = this.overlayCanvas.nativeElement;
 
-    // Overlay genau über Three.js Canvas
-    overlayCanvas.width = threeCanvas.width;
-    overlayCanvas.height = threeCanvas.height;
+    // WICHTIG: Verwende Display-Size, nicht internal canvas size!
+    const rect = threeCanvas.getBoundingClientRect();
+
+    // CSS-Display-Größe (was der User sieht)
+    overlayCanvas.style.width = rect.width + 'px';
+    overlayCanvas.style.height = rect.height + 'px';
+
+    // Canvas-Auflösung = Display-Größe (1:1 Mapping)
+    overlayCanvas.width = rect.width;
+    overlayCanvas.height = rect.height;
+
+    console.log('Overlay Canvas:', overlayCanvas.width, 'x', overlayCanvas.height);
+    console.log('Three Canvas Display:', rect.width, 'x', rect.height);
+    console.log('Three Canvas Internal:', threeCanvas.width, 'x', threeCanvas.height);
 
     // Zeichne Markierungen
     this.drawMarkings();
@@ -313,23 +340,40 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
 
     if (!this.viewer) return;
 
-    const canvas = this.overlayCanvas.nativeElement;
-    const rect = canvas.getBoundingClientRect();
+    const overlayCanvas = this.overlayCanvas.nativeElement;
+    const threeCanvas = this.viewer.getCanvasElement();
 
-    const screenX = event.clientX - rect.left;
-    const screenY = event.clientY - rect.top;
+    // Overlay-Canvas Koordinaten
+    const overlayRect = overlayCanvas.getBoundingClientRect();
+    const overlayX = event.clientX - overlayRect.left;
+    const overlayY = event.clientY - overlayRect.top;
+
+    // Three.js Canvas Koordinaten (können unterschiedlich sein!)
+    const threeRect = threeCanvas.getBoundingClientRect();
+    const threeX = event.clientX - threeRect.left;
+    const threeY = event.clientY - threeRect.top;
+
+    console.log('Klick - Overlay:', overlayX, overlayY, 'Three:', threeX, threeY);
 
     if (!this.waitingForShadowPoint) {
-      // Objekt-Punkt: Speichere einfach Screen-Koordinaten
-      this.tempObjectPoint = { x: screenX, y: screenY, screenX, screenY };
+      // Objekt-Punkt: Speichere Overlay-Koordinaten für Anzeige
+      this.tempObjectPoint = {
+        x: overlayX,
+        y: overlayY,
+        screenX: overlayX,
+        screenY: overlayY
+      };
       this.waitingForShadowPoint = true;
       this.drawMarkings();
     } else {
-      // Schatten-Punkt: Raycasting für Wand-Erkennung
-      const hit = this.viewer.getWallAtScreenPosition(screenX, screenY);
+      // Schatten-Punkt: Verwende Three.js Koordinaten für Raycasting!
+      const hit = this.viewer.getWallAtScreenPosition(threeX, threeY);
+
+      console.log('Raycasting Result:', hit);
 
       if (!hit.wall || !hit.point3D || !hit.point2D) {
         this.snackBar.open('⚠️ Schatten muss auf einer Wand liegen!', '', { duration: 2000 });
+        console.warn('Keine Wand getroffen. Hit:', hit);
         return;
       }
 
@@ -339,7 +383,7 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
           shadowPoint: { x: hit.point3D.x, y: hit.point3D.y, wall: hit.wall },
           _canvas: {
             objectPoint: { x: this.tempObjectPoint.screenX, y: this.tempObjectPoint.screenY },
-            shadowPoint: { x: hit.point2D.x, y: hit.point2D.y },
+            shadowPoint: { x: overlayX, y: overlayY }, // Overlay-Koordinaten für Anzeige
           },
         });
 
