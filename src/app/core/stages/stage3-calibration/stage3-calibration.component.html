@@ -40,33 +40,73 @@
     <mat-card-content>
       <!-- DREI-SPALTEN-LAYOUT -->
       <div class="three-column-layout">
-        <!-- LINKE SPALTE: Screenshot-Anpassungen -->
+        <!-- LINKE SPALTE: Globale Parameter + Screenshot-Anpassungen -->
         <div class="left-column">
-          <div class="control-group">
+          <!-- NEU: Globale Kamera-Optik -->
+          <div class="control-group global-params">
+            <h3>
+              <mat-icon>camera</mat-icon>
+              Kamera-Optik (global)
+            </h3>
+
+            <!-- NEU: Field of View -->
             <div class="slider-row">
-              <label matTooltip="Screenshot-Größe (Focal Length)">S:</label>
-              <mat-slider min="10" max="200" step="1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentBackgroundScale"
-                  (ngModelChange)="onBackgroundScaleChange()"
-                />
+              <label matTooltip="Vertikales Sichtfeld der Kamera">FOV:</label>
+              <mat-slider min="30" max="120" step="1">
+                <input matSliderThumb [(ngModel)]="globalFovY" (ngModelChange)="onFovChange()" />
               </mat-slider>
-              <span class="value">{{ currentBackgroundScale }}%</span>
+              <span class="value">{{ globalFovY }}°</span>
+            </div>
+
+            <!-- Info-Hinweis -->
+            <div class="info-hint">
+              <mat-icon>info</mat-icon>
+              <span>Typisch: 50-70° (Normal), 90-120° (Weitwinkel)</span>
             </div>
           </div>
 
+          <!-- Display-Zoom (UI-Parameter) -->
           <div class="control-group">
+            <h3>
+              <mat-icon>zoom_in</mat-icon>
+              Darstellung (global)
+            </h3>
+
+            <div class="slider-row">
+              <label matTooltip="Zoom für Screenshot-Darstellung">Zoom:</label>
+              <mat-slider min="10" max="200" step="1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="globalDisplayZoom"
+                  (ngModelChange)="onDisplayZoomChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ globalDisplayZoom }}%</span>
+            </div>
+
+            <div class="info-hint muted">
+              <mat-icon>visibility</mat-icon>
+              <span>Nur für Darstellung, keine mathematische Bedeutung</span>
+            </div>
+          </div>
+
+          <!-- Screenshot-spezifische Anpassungen -->
+          <div class="control-group">
+            <h3>
+              <mat-icon>image</mat-icon>
+              Screenshot-Ausrichtung
+            </h3>
+
             <div class="slider-row">
               <mat-icon class="slider-icon" matTooltip="Rotation">rotate_right</mat-icon>
               <mat-slider min="0" max="360" step="1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentBackgroundRotation"
+                  [(ngModel)]="currentDisplay.backgroundRotation"
                   (ngModelChange)="onBackgroundRotationChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentBackgroundRotation }}°</span>
+              <span class="value">{{ currentDisplay.backgroundRotation }}°</span>
             </div>
 
             <div class="slider-row">
@@ -74,11 +114,11 @@
               <mat-slider min="0" max="100" step="1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentBackgroundOffsetX"
+                  [(ngModel)]="currentDisplay.backgroundOffsetX"
                   (ngModelChange)="onBackgroundOffsetChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentBackgroundOffsetX }}%</span>
+              <span class="value">{{ currentDisplay.backgroundOffsetX }}%</span>
             </div>
 
             <div class="slider-row">
@@ -86,15 +126,21 @@
               <mat-slider min="0" max="100" step="1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentBackgroundOffsetY"
+                  [(ngModel)]="currentDisplay.backgroundOffsetY"
                   (ngModelChange)="onBackgroundOffsetChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentBackgroundOffsetY }}%</span>
+              <span class="value">{{ currentDisplay.backgroundOffsetY }}%</span>
             </div>
           </div>
 
+          <!-- Raum-Dimensionen -->
           <div class="control-group">
+            <h3>
+              <mat-icon>straighten</mat-icon>
+              Raum-Dimensionen
+            </h3>
+
             <div class="slider-row">
               <label>B:</label>
               <mat-slider min="2" max="15" step="0.1">
@@ -139,118 +185,113 @@
             #viewer
             [backgroundImage]="currentStep?.screenshot?.file ?? undefined"
             [roomParams]="currentRoomParams"
-            [roomRotation]="currentRoomRotation"
-            [cameraPosition]="currentCameraPosition"
-            [backgroundRotation]="currentBackgroundRotation"
-            [backgroundScale]="currentBackgroundScale"
-            [backgroundOffsetX]="currentBackgroundOffsetX"
-            [backgroundOffsetY]="currentBackgroundOffsetY"
+            [roomRotation]="{
+              x: currentCameraRotation.x,
+              y: currentCameraRotation.y,
+              z: currentCameraRotation.z
+            }"
+            [cameraPosition]="globalCameraPosition"
+            [fovY]="globalFovY"
+            [backgroundRotation]="currentDisplay.backgroundRotation"
+            [backgroundScale]="currentDisplay.backgroundScale"
+            [backgroundOffsetX]="currentDisplay.backgroundOffsetX"
+            [backgroundOffsetY]="currentDisplay.backgroundOffsetY"
             [showGrid]="showGrid"
           >
           </app-three-viewer>
         </div>
 
-        <!-- RECHTE SPALTE: Kamera-Einstellungen -->
+        <!-- RECHTE SPALTE: Kamera-Position & Rotation -->
         <div class="right-column">
-          <!-- Kamera-Position -->
+          <!-- Kamera-Position (global) -->
           <div class="control-group">
             <div class="control-header">
-              <h3>Kamera Position</h3>
-              <mat-checkbox
-                [(ngModel)]="lockCameraPosition"
-                matTooltip="Für alle Screenshots fixieren"
-              >
-                Fix
-              </mat-checkbox>
+              <h3>
+                <mat-icon>videocam</mat-icon>
+                Kamera-Position
+              </h3>
+              <span class="badge global">GLOBAL</span>
             </div>
 
             <div class="slider-row">
               <label>X:</label>
-              <mat-slider
-                min="0"
-                [max]="currentRoomParams.width"
-                step="0.1"
-                [disabled]="lockCameraPosition && completedCount > 0"
-              >
+              <mat-slider min="0" [max]="currentRoomParams.width" step="0.1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentCameraPosition.x"
-                  (ngModelChange)="onCameraPositionChange()"
+                  [(ngModel)]="globalCameraPosition.x"
+                  (ngModelChange)="onGlobalCameraPositionChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentCameraPosition.x.toFixed(1) }}m</span>
+              <span class="value">{{ globalCameraPosition.x.toFixed(1) }}m</span>
             </div>
 
             <div class="slider-row">
               <label>Y:</label>
-              <mat-slider
-                min="0"
-                [max]="currentRoomParams.height"
-                step="0.1"
-                [disabled]="lockCameraPosition && completedCount > 0"
-              >
+              <mat-slider min="0" [max]="currentRoomParams.height" step="0.1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentCameraPosition.y"
-                  (ngModelChange)="onCameraPositionChange()"
+                  [(ngModel)]="globalCameraPosition.y"
+                  (ngModelChange)="onGlobalCameraPositionChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentCameraPosition.y.toFixed(1) }}m</span>
+              <span class="value">{{ globalCameraPosition.y.toFixed(1) }}m</span>
             </div>
 
             <div class="slider-row">
               <label>Z:</label>
-              <mat-slider
-                min="0"
-                [max]="currentRoomParams.depth"
-                step="0.1"
-                [disabled]="lockCameraPosition && completedCount > 0"
-              >
+              <mat-slider min="0" [max]="currentRoomParams.depth" step="0.1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentCameraPosition.z"
-                  (ngModelChange)="onCameraPositionChange()"
+                  [(ngModel)]="globalCameraPosition.z"
+                  (ngModelChange)="onGlobalCameraPositionChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentCameraPosition.z.toFixed(1) }}m</span>
+              <span class="value">{{ globalCameraPosition.z.toFixed(1) }}m</span>
             </div>
 
-            <div
-              *ngIf="lockCameraPosition && completedCount > 0"
-              class="info-message-compact"
-              style="background: #e3f2fd"
-            >
-              <mat-icon>lock</mat-icon>
-              <span>Fixiert für alle</span>
+            <div class="info-hint">
+              <mat-icon>info</mat-icon>
+              <span>Gleiche Position für alle Screenshots</span>
             </div>
           </div>
 
-          <!-- Kamera-Rotation -->
+          <!-- Kamera-Blickrichtung (pro Screenshot) -->
           <div class="control-group">
-            <h3>Kamera Rotation</h3>
-
-            <div class="slider-row">
-              <label>X:</label>
-              <mat-slider min="-180" max="180" step="1">
-                <input
-                  matSliderThumb
-                  [(ngModel)]="currentRoomRotation.x"
-                  (ngModelChange)="onRoomRotationChange()"
-                />
-              </mat-slider>
-              <span class="value">{{ currentRoomRotation.x }}°</span>
+            <div class="control-header">
+              <h3>
+                <mat-icon>pan_tool</mat-icon>
+                Kamera-Blickrichtung
+              </h3>
+              <span class="badge per-screenshot">PRO SCREENSHOT</span>
             </div>
 
             <div class="slider-row">
-              <label>Y:</label>
+              <label matTooltip="Neigung (Pitch)">X:</label>
+              <mat-slider min="-90" max="90" step="1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentCameraRotation.x"
+                  (ngModelChange)="onCameraRotationChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentCameraRotation.x }}°</span>
+            </div>
+
+            <div class="slider-row">
+              <label matTooltip="Schwenk (Yaw)">Y:</label>
               <mat-slider min="-180" max="180" step="1">
                 <input
                   matSliderThumb
-                  [(ngModel)]="currentRoomRotation.y"
-                  (ngModelChange)="onRoomRotationChange()"
+                  [(ngModel)]="currentCameraRotation.y"
+                  (ngModelChange)="onCameraRotationChange()"
                 />
               </mat-slider>
-              <span class="value">{{ currentRoomRotation.y }}°</span>
+              <span class="value">{{ currentCameraRotation.y }}°</span>
+            </div>
+
+            <div class="info-hint">
+              <mat-icon>info</mat-icon>
+              <span>Wohin die Kamera in diesem Screenshot schaut</span>
             </div>
           </div>
         </div>

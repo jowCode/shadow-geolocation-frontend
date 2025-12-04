@@ -15,6 +15,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ThreeViewerComponent, RoomParams, RoomRotation } from '../../shared/three-viewer/three-viewer.component';
 import { StateService } from '../../services/state.service';
@@ -22,17 +23,28 @@ import { ApiService } from '../../services/api.service';
 import { BundleAdjustmentService, BundleAdjustmentRequest, BundleAdjustmentProgress } from '../../services/bundle-adjustment.service';
 import { BundleAdjustmentDialogComponent, BundleAdjustmentDialogData } from '../../shared/bundle-adjustment-dialog/bundle-adjustment-dialog.component';
 
+// NEU: Import der Koordinatensystem-Typen
+import type {
+  RoomDimensions,
+  GlobalCameraParams,
+  ScreenshotCalibration,
+  DisplayParams,
+  EulerRotation,
+  CalibrationData
+} from '../../shared/coordinate-system';
+
 interface CalibrationStep {
   screenshot: {
     id: string;
     file: File;
+    // NEU: Original-Dimensionen speichern!
+    originalWidth: number;
+    originalHeight: number;
   };
-  cameraPosition: { x: number; y: number; z: number };
-  roomRotation: RoomRotation;
-  backgroundRotation: number;
-  backgroundScale: number;
-  backgroundOffsetX: number;
-  backgroundOffsetY: number;
+  // Mathematische Parameter (für Rekonstruktion)
+  cameraRotation: EulerRotation;
+  // UI-Parameter (NUR für Darstellung!)
+  display: DisplayParams;
   completed: boolean;
 }
 
@@ -52,6 +64,7 @@ interface CalibrationStep {
     MatProgressBarModule,
     MatSnackBarModule,
     MatDialogModule,
+    MatTooltipModule,
     ThreeViewerComponent,
     MatExpansionModule,
   ],
@@ -64,31 +77,61 @@ export class Stage3CalibrationComponent implements OnInit {
   calibrationSteps: CalibrationStep[] = [];
   currentStepIndex = 0;
 
-  // Global
+  // ============================================================================
+  // GLOBALE PARAMETER (für alle Screenshots gleich)
+  // ============================================================================
+
+  /** Raum-Dimensionen in Metern */
   currentRoomParams: RoomParams = { width: 4, depth: 5, height: 2.5 };
-  currentBackgroundScale = 50; // Jetzt auch global!
 
-  // Pro Screenshot (oder global wenn locked)
-  currentCameraPosition = { x: 2, y: 1.5, z: 3 };
-  currentRoomRotation: RoomRotation = { x: 0, y: 0, z: 0 }; // z bleibt immer 0
-  currentBackgroundRotation = 0;
-  currentBackgroundOffsetX = 50;
-  currentBackgroundOffsetY = 50;
+  /** Globale Kamera-Position im Raum (Meter) */
+  globalCameraPosition = { x: 2, y: 1.5, z: 0.5 };
 
-  // Settings
+  /** 
+   * NEU: Globales Field of View (Grad)
+   * 
+   * Dies ist der ECHTE optische Parameter der Kamera.
+   * Typische Werte: 50-70° für normale Kameras, 90-120° für Weitwinkel
+   */
+  globalFovY = 60;
+
+  /**
+   * NEU: Globaler Display-Zoom (KEINE mathematische Bedeutung!)
+   * 
+   * Dies ist NUR für die UI-Darstellung, um den Screenshot
+   * passend unter dem 3D-Wireframe anzuzeigen.
+   */
+  globalDisplayZoom = 50;
+
+  // ============================================================================
+  // PRO-SCREENSHOT PARAMETER
+  // ============================================================================
+
+  /** Kamera-Blickrichtung für aktuellen Screenshot */
+  currentCameraRotation: EulerRotation = { x: 0, y: 0, z: 0, order: 'YXZ' };
+
+  /** UI-Parameter für aktuellen Screenshot (NUR Darstellung!) */
+  currentDisplay: DisplayParams = {
+    backgroundScale: 50,
+    backgroundRotation: 0,
+    backgroundOffsetX: 50,
+    backgroundOffsetY: 50
+  };
+
+  // ============================================================================
+  // EINSTELLUNGEN
+  // ============================================================================
+
   showGrid = true;
-  lockCameraPosition = false;
+  lockCameraPosition = true;  // Default: Kamera ist fixiert
 
   // Bundle Adjustment State
   isOptimizing = false;
-
-  // Confidence Settings
   roomConfidence = 0.5;
-  positionConfidence = 0.3;  // Default: Position unsicher
+  positionConfidence = 0.3;
 
   // Session ID
   sessionId: string | null = null;
-
   private isInitialLoad = true;
 
   constructor(
@@ -112,24 +155,29 @@ export class Stage3CalibrationComponent implements OnInit {
     }
 
     try {
-      // 1. Lade Backend-Daten
       const calibResponse = await this.apiService.loadCalibration(this.sessionId).toPromise();
       const orgResponse = await this.apiService.loadOrganization(this.sessionId).toPromise();
 
       const calibData = calibResponse?.data;
       const orgData = orgResponse?.data?.screenshots || [];
 
-      // 2. Wenn Kalibrierung existiert, lade sie
       if (calibData) {
+        // Lade globale Parameter
         this.currentRoomParams = calibData.room || { width: 5, depth: 5, height: 3 };
-        this.currentBackgroundScale = calibData.masterFocalLength || 50;
 
-        if (calibData.globalCameraPosition) {
-          this.currentCameraPosition = calibData.globalCameraPosition;
-          this.lockCameraPosition = true;
+        // NEU: Lade globale Kamera-Parameter
+        if (calibData.camera) {
+          this.globalCameraPosition = calibData.camera.position || { x: 2, y: 1.5, z: 0.5 };
+          this.globalFovY = calibData.camera.fovY || 60;
+        } else if (calibData.globalCameraPosition) {
+          // Migration von altem Format
+          this.globalCameraPosition = calibData.globalCameraPosition;
+          this.globalFovY = 60;  // Default
         }
 
-        // 3. CalibrationSteps MIT Backend-Daten initialisieren
+        // NEU: Display-Zoom (vorher masterFocalLength genannt)
+        this.globalDisplayZoom = calibData.globalDisplayZoom || calibData.masterFocalLength || 50;
+
         const calibrationScreenshots = orgData.filter((o: any) => o.useForCalibration);
 
         this.calibrationSteps = await Promise.all(
@@ -138,42 +186,68 @@ export class Stage3CalibrationComponent implements OnInit {
             const blob = await fetch(url).then(r => r.blob());
             const file = new File([blob], o.filename, { type: 'image/png' });
 
-            // Suche gespeicherte Kalibrierung für diesen Screenshot
+            // NEU: Original-Dimensionen ermitteln
+            const dimensions = await this.getImageDimensions(file);
+
             const savedCalib = calibData.screenshots?.find((s: any) => s.id === o.id);
 
             if (savedCalib) {
               console.log(`✅ Screenshot ${o.id}: Lade gespeicherte Kalibrierung`, savedCalib);
-              return {
-                screenshot: { id: o.id, file: file },
-                cameraPosition: savedCalib.cameraPosition || { x: 2, y: 1.5, z: 3 },
-                roomRotation: savedCalib.roomRotation || { x: 0, y: 0, z: 0 },
+
+              // Migration: Altes Format → Neues Format
+              const cameraRotation: EulerRotation = savedCalib.cameraRotation || {
+                x: savedCalib.roomRotation?.x || 0,
+                y: savedCalib.roomRotation?.y || 0,
+                z: savedCalib.roomRotation?.z || 0,
+                order: 'YXZ' as const
+              };
+
+              const display: DisplayParams = savedCalib.display || {
+                backgroundScale: savedCalib.backgroundScale ?? this.globalDisplayZoom,
                 backgroundRotation: savedCalib.backgroundRotation ?? 0,
-                backgroundScale: savedCalib.backgroundScale ?? this.currentBackgroundScale,
                 backgroundOffsetX: savedCalib.backgroundOffsetX ?? 50,
-                backgroundOffsetY: savedCalib.backgroundOffsetY ?? 50,
+                backgroundOffsetY: savedCalib.backgroundOffsetY ?? 50
+              };
+
+              return {
+                screenshot: {
+                  id: o.id,
+                  file,
+                  originalWidth: dimensions.width,
+                  originalHeight: dimensions.height
+                },
+                cameraRotation,
+                display,
                 completed: savedCalib.completed ?? false,
               };
             } else {
-              console.log(`ℹ️  Screenshot ${o.id}: Keine Kalibrierung gefunden, nutze Defaults`);
               return {
-                screenshot: { id: o.id, file: file },
-                cameraPosition: { x: 2, y: 1.5, z: 3 },
-                roomRotation: { x: 0, y: 0, z: 0 },
-                backgroundRotation: 0,
-                backgroundScale: this.currentBackgroundScale,
-                backgroundOffsetX: 50,
-                backgroundOffsetY: 50,
+                screenshot: {
+                  id: o.id,
+                  file,
+                  originalWidth: dimensions.width,
+                  originalHeight: dimensions.height
+                },
+                cameraRotation: { x: 0, y: 0, z: 0, order: 'YXZ' as const },
+                display: {
+                  backgroundScale: this.globalDisplayZoom,
+                  backgroundRotation: 0,
+                  backgroundOffsetX: 50,
+                  backgroundOffsetY: 50
+                },
                 completed: false,
               };
             }
           })
         );
       } else {
-        // Keine Kalibrierung im Backend: Initialisiere neu
+        // Keine Kalibrierung vorhanden: Initialisiere neu
         console.log('ℹ️  Keine Kalibrierung gefunden, initialisiere neu');
 
         this.currentRoomParams = { width: 5, depth: 5, height: 3 };
-        this.currentBackgroundScale = 50;
+        this.globalCameraPosition = { x: 2.5, y: 1.5, z: 0.5 };
+        this.globalFovY = 60;
+        this.globalDisplayZoom = 50;
 
         const calibrationScreenshots = orgData.filter((o: any) => o.useForCalibration);
 
@@ -182,24 +256,30 @@ export class Stage3CalibrationComponent implements OnInit {
             const url = this.apiService.getScreenshotUrl(this.sessionId!, `${o.id}.png`);
             const blob = await fetch(url).then(r => r.blob());
             const file = new File([blob], o.filename, { type: 'image/png' });
+            const dimensions = await this.getImageDimensions(file);
 
             return {
-              screenshot: { id: o.id, file: file },
-              cameraPosition: { x: 2, y: 1.5, z: 3 },
-              roomRotation: { x: 0, y: 0, z: 0 },
-              backgroundRotation: 0,
-              backgroundScale: this.currentBackgroundScale,
-              backgroundOffsetX: 50,
-              backgroundOffsetY: 50,
+              screenshot: {
+                id: o.id,
+                file,
+                originalWidth: dimensions.width,
+                originalHeight: dimensions.height
+              },
+              cameraRotation: { x: 0, y: 0, z: 0, order: 'YXZ' as const },
+              display: {
+                backgroundScale: this.globalDisplayZoom,
+                backgroundRotation: 0,
+                backgroundOffsetX: 50,
+                backgroundOffsetY: 50
+              },
               completed: false,
             };
           })
         );
       }
 
-      console.log('📋 Alle CalibrationSteps initialisiert:', this.calibrationSteps);
+      console.log('📋 CalibrationSteps initialisiert:', this.calibrationSteps);
 
-      // 4. JETZT erst Viewer initialisieren
       if (this.calibrationSteps.length > 0) {
         await this.delay(100);
         this.goToScreenshot(0);
@@ -209,6 +289,24 @@ export class Stage3CalibrationComponent implements OnInit {
       console.error('❌ Fehler beim Laden:', err);
       alert('Fehler beim Laden der Kalibrierung');
     }
+  }
+
+  /**
+   * NEU: Ermittelt die Original-Dimensionen eines Bildes
+   */
+  private getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = () => {
+        console.warn('Konnte Bildgröße nicht ermitteln, verwende Defaults');
+        resolve({ width: 1920, height: 1080 });
+      };
+      img.src = URL.createObjectURL(file);
+    });
   }
 
   private delay(ms: number): Promise<void> {
@@ -228,55 +326,78 @@ export class Stage3CalibrationComponent implements OnInit {
     return (this.completedCount / this.calibrationSteps.length) * 100;
   }
 
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
   onRoomChange() {
     this.viewer?.updateRoom(this.currentRoomParams);
   }
 
-  onCameraPositionChange() {
-    this.viewer?.updateCameraPosition(this.currentCameraPosition);
+  onGlobalCameraPositionChange() {
+    this.viewer?.updateCameraPosition(this.globalCameraPosition);
   }
 
-  onRoomRotationChange() {
-    this.viewer?.updateRoomRotation(this.currentRoomRotation);
+  onCameraRotationChange() {
+    // Konvertiere zu RoomRotation für den Viewer
+    this.viewer?.updateRoomRotation({
+      x: this.currentCameraRotation.x,
+      y: this.currentCameraRotation.y,
+      z: this.currentCameraRotation.z
+    });
+  }
+
+  /** NEU: FOV-Änderung */
+  onFovChange() {
+    // FOV direkt an den Viewer übergeben
+    if (this.viewer) {
+      this.viewer.updateFov(this.globalFovY);
+    }
+    console.log('📐 FOV geändert:', this.globalFovY, '°');
+  }
+
+  /** Display-Zoom (globaler UI-Parameter) */
+  onDisplayZoomChange() {
+    // Aktualisiere alle Screenshots mit dem neuen Zoom
+    this.calibrationSteps.forEach(step => {
+      step.display.backgroundScale = this.globalDisplayZoom;
+    });
+    this.currentDisplay.backgroundScale = this.globalDisplayZoom;
+    this.viewer?.updateBackgroundScale(this.globalDisplayZoom);
   }
 
   onBackgroundRotationChange() {
-    this.viewer?.updateBackgroundRotation(this.currentBackgroundRotation);
-  }
-
-  onBackgroundScaleChange() {
-    this.viewer?.updateBackgroundScale(this.currentBackgroundScale);
+    this.viewer?.updateBackgroundRotation(this.currentDisplay.backgroundRotation);
   }
 
   onBackgroundOffsetChange() {
-    this.viewer?.updateBackgroundOffset(this.currentBackgroundOffsetX, this.currentBackgroundOffsetY);
+    this.viewer?.updateBackgroundOffset(
+      this.currentDisplay.backgroundOffsetX,
+      this.currentDisplay.backgroundOffsetY
+    );
   }
 
   onToggleGrid() {
     this.viewer?.toggleGrid(this.showGrid);
   }
 
+  // ============================================================================
+  // SPEICHERN
+  // ============================================================================
+
   async onSaveCurrentScreenshot() {
     if (this.currentStep) {
-      this.currentStep.cameraPosition = { ...this.currentCameraPosition };
-      this.currentStep.roomRotation = { ...this.currentRoomRotation };
-      this.currentStep.backgroundRotation = this.currentBackgroundRotation;
-      this.currentStep.backgroundScale = this.currentBackgroundScale;
-      this.currentStep.backgroundOffsetX = this.currentBackgroundOffsetX;
-      this.currentStep.backgroundOffsetY = this.currentBackgroundOffsetY;
+      // Speichere aktuelle Werte im Step
+      this.currentStep.cameraRotation = { ...this.currentCameraRotation };
+      this.currentStep.display = { ...this.currentDisplay };
       this.currentStep.completed = true;
 
-      // Auch ins Backend speichern
       await this.saveToBackend();
 
       this.snackBar.open(
         `Screenshot ${this.currentStepIndex + 1} gespeichert ✓`,
         '',
-        {
-          duration: 2000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom'
-        }
+        { duration: 2000, horizontalPosition: 'center', verticalPosition: 'bottom' }
       );
     }
   }
@@ -285,145 +406,158 @@ export class Stage3CalibrationComponent implements OnInit {
     if (!this.sessionId) return;
 
     try {
-      // Setze globalen Scale für alle
-      this.calibrationSteps.forEach(step => {
-        step.backgroundScale = this.currentBackgroundScale;
-      });
-
-      const calibrationData = {
+      // NEU: Strukturiertes Kalibrierungs-Format
+      const calibrationData: CalibrationData = {
+        version: '2.0',
         room: this.currentRoomParams,
-        globalCameraPosition: this.lockCameraPosition ? this.currentCameraPosition : null,
-        masterFocalLength: this.currentBackgroundScale,
+        camera: {
+          position: this.globalCameraPosition,
+          fovY: this.globalFovY
+        },
         screenshots: this.calibrationSteps.map(step => ({
           id: step.screenshot.id,
-          cameraPosition: step.cameraPosition,
-          roomRotation: step.roomRotation,
-          backgroundRotation: step.backgroundRotation,
-          backgroundScale: step.backgroundScale,
-          backgroundOffsetX: step.backgroundOffsetX,
-          backgroundOffsetY: step.backgroundOffsetY,
+          screenshotDimensions: {
+            width: step.screenshot.originalWidth,
+            height: step.screenshot.originalHeight
+          },
+          cameraRotation: step.cameraRotation,
+          display: step.display,
           completed: step.completed
         }))
       };
 
-      await this.apiService.saveCalibration(this.sessionId, calibrationData).toPromise();
-      console.log('💾 Kalibrierung ins Backend gespeichert');
+      // Zusätzlich altes Format für Abwärtskompatibilität
+      const legacyFormat = {
+        room: this.currentRoomParams,
+        globalCameraPosition: this.globalCameraPosition,
+        masterFocalLength: this.globalDisplayZoom,
+        // NEU: Auch neue Felder speichern
+        camera: calibrationData.camera,
+        globalDisplayZoom: this.globalDisplayZoom,
+        globalFovY: this.globalFovY,
+        screenshots: this.calibrationSteps.map(step => ({
+          id: step.screenshot.id,
+          // Altes Format
+          cameraPosition: this.globalCameraPosition,
+          roomRotation: {
+            x: step.cameraRotation.x,
+            y: step.cameraRotation.y,
+            z: step.cameraRotation.z
+          },
+          backgroundRotation: step.display.backgroundRotation,
+          backgroundScale: step.display.backgroundScale,
+          backgroundOffsetX: step.display.backgroundOffsetX,
+          backgroundOffsetY: step.display.backgroundOffsetY,
+          completed: step.completed,
+          // Neues Format
+          cameraRotation: step.cameraRotation,
+          display: step.display,
+          screenshotDimensions: {
+            width: step.screenshot.originalWidth,
+            height: step.screenshot.originalHeight
+          }
+        }))
+      };
+
+      await this.apiService.saveCalibration(this.sessionId, legacyFormat).toPromise();
+      console.log('💾 Kalibrierung gespeichert (v2.0 + Legacy)');
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
       this.snackBar.open('Fehler beim Speichern ins Backend', '', { duration: 3000 });
     }
   }
 
+  // ============================================================================
+  // NAVIGATION
+  // ============================================================================
+
   goToScreenshot(index: number) {
-    // Aktuellen Screenshot speichern (ABER NICHT beim ersten Load!)
+    // Aktuellen Screenshot speichern (außer beim ersten Load)
     if (this.currentStep && !this.isInitialLoad) {
-      this.currentStep.cameraPosition = { ...this.currentCameraPosition };
-      this.currentStep.roomRotation = { ...this.currentRoomRotation };
-      this.currentStep.backgroundRotation = this.currentBackgroundRotation;
-      this.currentStep.backgroundScale = this.currentBackgroundScale;
-      this.currentStep.backgroundOffsetX = this.currentBackgroundOffsetX;
-      this.currentStep.backgroundOffsetY = this.currentBackgroundOffsetY;
+      this.currentStep.cameraRotation = { ...this.currentCameraRotation };
+      this.currentStep.display = { ...this.currentDisplay };
     }
 
     this.currentStepIndex = index;
 
     const newStep = this.calibrationSteps[index];
     if (newStep) {
-      // Lade Werte AUS dem Step
-      if (!this.lockCameraPosition || this.completedCount === 0) {
-        this.currentCameraPosition = { ...newStep.cameraPosition };
-      }
-
-      this.currentRoomRotation = { ...newStep.roomRotation, z: 0 };
-      this.currentBackgroundRotation = newStep.backgroundRotation;
-      this.currentBackgroundOffsetX = newStep.backgroundOffsetX;
-      this.currentBackgroundOffsetY = newStep.backgroundOffsetY;
-
-      // Background Scale bleibt global
-      // this.currentBackgroundScale bleibt unverändert
+      // Lade Werte aus dem Step
+      this.currentCameraRotation = { ...newStep.cameraRotation };
+      this.currentDisplay = { ...newStep.display };
 
       setTimeout(() => {
         this.viewer?.updateBackground(newStep.screenshot.file);
         this.viewer?.updateRoom(this.currentRoomParams);
-        this.viewer?.updateCameraPosition(this.currentCameraPosition);
-        this.viewer?.updateRoomRotation(this.currentRoomRotation);
-        this.viewer?.updateBackgroundRotation(this.currentBackgroundRotation);
-        this.viewer?.updateBackgroundScale(this.currentBackgroundScale);
-        this.viewer?.updateBackgroundOffset(this.currentBackgroundOffsetX, this.currentBackgroundOffsetY);
+        this.viewer?.updateCameraPosition(this.globalCameraPosition);
+        this.viewer?.updateRoomRotation({
+          x: this.currentCameraRotation.x,
+          y: this.currentCameraRotation.y,
+          z: this.currentCameraRotation.z
+        });
+        this.viewer?.updateBackgroundRotation(this.currentDisplay.backgroundRotation);
+        this.viewer?.updateBackgroundScale(this.currentDisplay.backgroundScale);
+        this.viewer?.updateBackgroundOffset(
+          this.currentDisplay.backgroundOffsetX,
+          this.currentDisplay.backgroundOffsetY
+        );
       }, 100);
     }
 
-    // Nach dem ersten Load: Flag zurücksetzen
     this.isInitialLoad = false;
     this.cdr.detectChanges();
   }
 
+  // ============================================================================
+  // BUNDLE ADJUSTMENT
+  // ============================================================================
+
   async onStartOptimization() {
-    // Letzten Stand speichern
     await this.onSaveCurrentScreenshot();
 
     const completedSteps = this.calibrationSteps.filter(s => s.completed);
 
     if (completedSteps.length < 2) {
-      alert('Bitte kalibriere mindestens 2 Screenshots!\n\nAktueller Stand: ' +
-        completedSteps.length + ' von ' + this.calibrationSteps.length);
+      alert('Bitte kalibriere mindestens 2 Screenshots!');
       return;
     }
 
     const confirm = window.confirm(
-      `Bundle Adjustment mit ${completedSteps.length} von ${this.calibrationSteps.length} Screenshots starten?\n\n` +
-      `Dies optimiert automatisch die Raum-Dimensionen und Kamera-Position.`
+      `Bundle Adjustment mit ${completedSteps.length} Screenshots starten?`
     );
 
-    if (!confirm) {
-      return;
-    }
+    if (!confirm) return;
 
-    // WICHTIG: Setze den globalen Scale-Wert für ALLE Screenshots
-    this.calibrationSteps.forEach(step => {
-      step.backgroundScale = this.currentBackgroundScale;
-    });
-
-    // Request vorbereiten
     const state = this.stateService.getCurrentState();
     const request: BundleAdjustmentRequest = {
       session_id: state.sessionId || '',
-      room: {
-        width: this.currentRoomParams.width,
-        depth: this.currentRoomParams.depth,
-        height: this.currentRoomParams.height
+      room: this.currentRoomParams,
+      global_camera_position: {
+        x: this.globalCameraPosition.x,
+        y: this.globalCameraPosition.y,
+        z: this.globalCameraPosition.z
       },
-      global_camera_position: this.lockCameraPosition ? {
-        x: this.currentCameraPosition.x,
-        y: this.currentCameraPosition.y,
-        z: this.currentCameraPosition.z
-      } : null,
-      master_focal_length: this.currentBackgroundScale,
+      master_focal_length: this.globalDisplayZoom,
       screenshots: this.calibrationSteps.map(step => ({
         id: step.screenshot.id,
-        camera_position: {
-          x: step.cameraPosition.x,
-          y: step.cameraPosition.y,
-          z: step.cameraPosition.z
-        },
+        camera_position: this.globalCameraPosition,
         room_rotation: {
-          x: step.roomRotation.x,
-          y: step.roomRotation.y,
-          z: step.roomRotation.z
+          x: step.cameraRotation.x,
+          y: step.cameraRotation.y,
+          z: step.cameraRotation.z
         },
-        background_rotation: step.backgroundRotation,
-        background_scale: step.backgroundScale,
-        background_offset_x: step.backgroundOffsetX,
-        background_offset_y: step.backgroundOffsetY,
+        background_rotation: step.display.backgroundRotation,
+        background_scale: step.display.backgroundScale,
+        background_offset_x: step.display.backgroundOffsetX,
+        background_offset_y: step.display.backgroundOffsetY,
         completed: step.completed
       })),
-      weights: {  // ← NEU!
+      weights: {
         room_confidence: this.roomConfidence,
         position_confidence: this.positionConfidence
       }
     };
 
-    // Dialog öffnen
     const dialogData: BundleAdjustmentDialogData = {
       progress: 0,
       message: 'Initialisiere...',
@@ -438,10 +572,8 @@ export class Stage3CalibrationComponent implements OnInit {
 
     this.isOptimizing = true;
 
-    // Bundle Adjustment starten
     this.bundleAdjustmentService.runBundleAdjustment(request).subscribe({
       next: (update: BundleAdjustmentProgress) => {
-        // Dialog-Daten aktualisieren
         dialogData.progress = update.progress || 0;
         dialogData.message = update.message || '';
         dialogData.iteration = update.iteration || 0;
@@ -462,97 +594,97 @@ export class Stage3CalibrationComponent implements OnInit {
       }
     });
 
-    // Auf Dialog-Schließung warten
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        // User hat "Übernehmen" geklickt
         this.applyOptimizedValues(result);
       }
     });
   }
 
   applyOptimizedValues(result: any) {
-    // Raum-Dimensionen übernehmen
     this.currentRoomParams = {
       width: result.optimized_room.width,
       depth: result.optimized_room.depth,
       height: result.optimized_room.height
     };
 
-    // Kamera-Position übernehmen (falls locked)
     if (result.optimized_camera) {
-      this.currentCameraPosition = {
+      this.globalCameraPosition = {
         x: result.optimized_camera.x,
         y: result.optimized_camera.y,
         z: result.optimized_camera.z
       };
     }
 
-    // 3D-Viewer aktualisieren
     this.viewer?.updateRoom(this.currentRoomParams);
-    this.viewer?.updateCameraPosition(this.currentCameraPosition);
+    this.viewer?.updateCameraPosition(this.globalCameraPosition);
 
     this.snackBar.open(
       `Optimierte Werte übernommen! Verbesserung: ${result.improvement_percent.toFixed(1)}%`,
       '',
-      {
-        duration: 5000,
-        horizontalPosition: 'center',
-        verticalPosition: 'bottom'
-      }
+      { duration: 5000 }
     );
 
-    // Alle Screenshots als "completed" markieren (da sie jetzt mit optimierten Werten passen)
     this.calibrationSteps.forEach(step => {
-      if (step.completed) {
-        // Update Camera Position falls global locked
-        if (result.optimized_camera) {
-          step.cameraPosition = { ...result.optimized_camera };
-        }
+      if (step.completed && result.optimized_camera) {
+        // Position wird nicht mehr pro Step gespeichert
       }
     });
   }
 
+  // ============================================================================
+  // WEITER ZU STAGE 5
+  // ============================================================================
+
   async onProceedToShadows() {
-    // Letzten Stand speichern
     await this.onSaveCurrentScreenshot();
 
     const completedSteps = this.calibrationSteps.filter(s => s.completed);
 
     if (completedSteps.length < 2) {
-      alert('Bitte kalibriere mindestens 2 Screenshots!\n\nAktueller Stand: ' +
-        completedSteps.length + ' von ' + this.calibrationSteps.length);
+      alert('Bitte kalibriere mindestens 2 Screenshots!');
       return;
     }
 
-    // WICHTIG: Setze den globalen Scale-Wert für ALLE Screenshots
-    this.calibrationSteps.forEach(step => {
-      step.backgroundScale = this.currentBackgroundScale;
-    });
-
+    // Speichere finale Kalibrierungsdaten im State
     const calibrationData = {
+      version: '2.0',
       room: this.currentRoomParams,
-      globalCameraPosition: this.lockCameraPosition ? this.currentCameraPosition : null,
-      masterFocalLength: this.currentBackgroundScale,
+      camera: {
+        position: this.globalCameraPosition,
+        fovY: this.globalFovY
+      },
+      globalDisplayZoom: this.globalDisplayZoom,
+      // Legacy-Felder für Kompatibilität
+      globalCameraPosition: this.globalCameraPosition,
+      masterFocalLength: this.globalDisplayZoom,
       screenshots: this.calibrationSteps.map(step => ({
         id: step.screenshot.id,
-        cameraPosition: step.cameraPosition,
-        roomRotation: step.roomRotation,
-        backgroundRotation: step.backgroundRotation,
-        backgroundScale: step.backgroundScale,
-        backgroundOffsetX: step.backgroundOffsetX,
-        backgroundOffsetY: step.backgroundOffsetY,
-        completed: step.completed
+        screenshotDimensions: {
+          width: step.screenshot.originalWidth,
+          height: step.screenshot.originalHeight
+        },
+        cameraRotation: step.cameraRotation,
+        display: step.display,
+        completed: step.completed,
+        // Legacy
+        cameraPosition: this.globalCameraPosition,
+        roomRotation: {
+          x: step.cameraRotation.x,
+          y: step.cameraRotation.y,
+          z: step.cameraRotation.z
+        },
+        backgroundRotation: step.display.backgroundRotation,
+        backgroundScale: step.display.backgroundScale,
+        backgroundOffsetX: step.display.backgroundOffsetX,
+        backgroundOffsetY: step.display.backgroundOffsetY
       }))
     };
 
-    // In State & Backend speichern
     this.stateService.getCurrentState().calibrationData = calibrationData;
     await this.apiService.saveCalibration(this.sessionId!, calibrationData).toPromise();
 
-    console.log('Kalibrierung abgeschlossen, weiter zu Schatten-Markierung');
-
-    // Weiter zu Stage 5
+    console.log('✅ Kalibrierung abgeschlossen:', calibrationData);
     this.router.navigate(['/stage5-shadows']);
   }
 
