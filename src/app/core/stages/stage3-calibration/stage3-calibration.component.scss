@@ -15,16 +15,6 @@ mat-card {
   margin: 0 !important;
 }
 
-mat-card-header {
-  padding: 8px 12px !important;
-  min-height: auto !important;
-}
-
-mat-card-subtitle {
-  font-size: 12px !important;
-  margin: 0 !important;
-}
-
 mat-card-content {
   flex: 1;
   overflow: hidden;
@@ -125,13 +115,6 @@ mat-card-actions {
   width: 16px;
   height: 16px;
   color: #666;
-}
-
-// NEU: Globale Parameter hervorheben
-.control-group.global-params {
-  background: #e3f2fd;
-  border: 2px solid #1976d2;
-  border-left-width: 4px;
 }
 
 .control-group.global-params h3 {
