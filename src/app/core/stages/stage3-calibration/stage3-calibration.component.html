@@ -179,8 +179,15 @@
             [backgroundOffsetX]="currentDisplay.backgroundOffsetX"
             [backgroundOffsetY]="currentDisplay.backgroundOffsetY"
             [showGrid]="showGrid"
+            (rotationChange)="onViewerRotationChange($event)"
           >
           </app-three-viewer>
+
+          <!-- NEU: Hinweis für Maus-Steuerung -->
+          <div class="viewer-hint">
+            <mat-icon>mouse</mat-icon>
+            <span>Drag to change view direction</span>
+          </div>
         </div>
 
         <!-- RECHTE SPALTE: Kamera-Position & Rotation -->
@@ -192,6 +199,11 @@
                 <mat-icon>pan_tool</mat-icon>
                 View direction
               </h3>
+              <!-- NEU: Rotation-Anzeige -->
+              <span class="rotation-display">
+                {{ currentCameraRotation.x.toFixed(0) }}° /
+                {{ currentCameraRotation.y.toFixed(0) }}°
+              </span>
             </div>
 
             <div class="slider-row">
@@ -216,6 +228,12 @@
                 />
               </mat-slider>
               <span class="value">{{ currentCameraRotation.y }}°</span>
+            </div>
+
+            <!-- NEU: Hinweis auf Maus-Drag -->
+            <div class="info-hint muted">
+              <mat-icon>lightbulb</mat-icon>
+              <span>Or drag in viewer with mouse</span>
             </div>
           </div>
 

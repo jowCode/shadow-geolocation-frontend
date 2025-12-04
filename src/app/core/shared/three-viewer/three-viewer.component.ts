@@ -1,7 +1,6 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, Input, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewInit, Input, OnDestroy, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
-import { OrbitControls } from 'three-stdlib';
 import * as THREE from 'three';
 
 export interface RoomParams {
@@ -26,7 +25,7 @@ interface WallInfo {
  * THREE VIEWER COMPONENT
  * ============================================================================
  * 
- * KOORDINATENSYSTEM (konsistent mit coordinate-system.ts):
+ * KOORDINATENSYSTEM:
  * 
  * Ursprung: (0, 0, 0) = Linke untere Ecke der Front-Wand
  * X-Achse:  Nach rechts (0 → room.width)
@@ -34,18 +33,16 @@ interface WallInfo {
  * Z-Achse:  Nach hinten (0 → room.depth)
  * Einheit:  Meter
  * 
- * WÄNDE:
- *   front:   z = 0
- *   back:    z = room.depth
- *   left:    x = 0
- *   right:   x = room.width
- *   floor:   y = 0
- *   ceiling: y = room.height
+ * INTERAKTION:
+ * - Maus-Drag: Ändert Kamera-Blickrichtung (Pan/Tilt)
+ * - Mausrad: DEAKTIVIERT (FOV nur über Slider)
  * 
- * KAMERA:
- *   - Position in Raum-Koordinaten (Meter)
- *   - Rotation: Euler YXZ (erst Yaw, dann Pitch, dann Roll)
- *   - FOV: Vertikales Field of View in Grad
+ * WAND-FARBEN (transparent):
+ *   front:  Rot      (z = 0)
+ *   back:   Grün     (z = room.depth)
+ *   left:   Blau     (x = 0)
+ *   right:  Cyan     (x = room.width)
+ *   floor:  Gelb     (y = 0)
  */
 @Component({
     selector: 'app-three-viewer',
@@ -66,7 +63,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     @Input() roomRotation: RoomRotation = { x: 0, y: 0, z: 0 };
     @Input() cameraPosition = { x: 2, y: 1.5, z: 0.5 };
 
-    /** NEU: Field of View (vertikal, in Grad) */
+    /** Field of View (vertikal, in Grad) */
     @Input() fovY = 60;
 
     // Display-Parameter (nur für UI, keine mathematische Bedeutung)
@@ -75,6 +72,13 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     @Input() backgroundOffsetX = 50;
     @Input() backgroundOffsetY = 50;
     @Input() showGrid = true;
+
+    // ========================================================================
+    // OUTPUTS - Events für Rotation-Änderungen
+    // ========================================================================
+
+    /** Wird gefeuert wenn User per Maus-Drag die Rotation ändert */
+    @Output() rotationChange = new EventEmitter<RoomRotation>();
 
     backgroundUrl: string | null = null;
 
@@ -88,13 +92,25 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     private gridHelper?: THREE.GridHelper;
     private animationId?: number;
     private roomMesh!: THREE.Group;
-    private controls?: OrbitControls;
+    private wallMeshes: THREE.Mesh[] = [];
+
+    // ========================================================================
+    // MAUS-DRAG STATE
+    // ========================================================================
+
+    private isDragging = false;
+    private lastMouseX = 0;
+    private lastMouseY = 0;
+
+    /** Sensitivität für Maus-Rotation (Grad pro Pixel) */
+    private readonly ROTATION_SENSITIVITY = 0.3;
 
     constructor(private sanitizer: DomSanitizer) { }
 
     ngAfterViewInit() {
         this.initThreeJS();
         this.createScene();
+        this.setupMouseHandlers();
         this.animate();
     }
 
@@ -103,7 +119,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
             this.loadBackgroundImage(this.backgroundImage);
         }
 
-        // NEU: FOV-Änderung reagieren
         if (changes['fovY'] && this.camera) {
             this.updateFov(this.fovY);
         }
@@ -116,6 +131,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         if (this.backgroundUrl) {
             URL.revokeObjectURL(this.backgroundUrl);
         }
+        this.removeMouseHandlers();
         this.renderer?.dispose();
     }
 
@@ -130,7 +146,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
 
         // Kamera mit korrektem FOV initialisieren
         this.camera = new THREE.PerspectiveCamera(
-            this.fovY,  // Vertikales FOV
+            this.fovY,
             canvas.clientWidth / canvas.clientHeight,
             0.1,
             1000
@@ -145,17 +161,103 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
 
-        // OrbitControls NUR für Zoom
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableRotate = false;
-        this.controls.enablePan = false;
-        this.controls.enableZoom = true;
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.minDistance = 0.5;
-        this.controls.maxDistance = 50;
+        // KEIN OrbitControls mehr - wir machen alles selbst!
+        // Dadurch ist Mausrad-Zoom automatisch deaktiviert
 
         window.addEventListener('resize', () => this.onWindowResize());
+    }
+
+    // ========================================================================
+    // MAUS-HANDLER FÜR ROTATION
+    // ========================================================================
+
+    private setupMouseHandlers() {
+        const canvas = this.canvasRef.nativeElement;
+
+        canvas.addEventListener('mousedown', this.onMouseDown);
+        canvas.addEventListener('mousemove', this.onMouseMove);
+        canvas.addEventListener('mouseup', this.onMouseUp);
+        canvas.addEventListener('mouseleave', this.onMouseUp);
+
+        // Mausrad deaktivieren (keine Aktion)
+        canvas.addEventListener('wheel', this.onWheel, { passive: false });
+
+        // Rechtsklick-Kontextmenü verhindern
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    private removeMouseHandlers() {
+        const canvas = this.canvasRef?.nativeElement;
+        if (!canvas) return;
+
+        canvas.removeEventListener('mousedown', this.onMouseDown);
+        canvas.removeEventListener('mousemove', this.onMouseMove);
+        canvas.removeEventListener('mouseup', this.onMouseUp);
+        canvas.removeEventListener('mouseleave', this.onMouseUp);
+        canvas.removeEventListener('wheel', this.onWheel);
+    }
+
+    private onMouseDown = (event: MouseEvent) => {
+        // Nur linke Maustaste
+        if (event.button !== 0) return;
+
+        this.isDragging = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+
+        // Cursor ändern
+        this.canvasRef.nativeElement.style.cursor = 'grabbing';
+    }
+
+    private onMouseMove = (event: MouseEvent) => {
+        if (!this.isDragging) {
+            // Hover-Cursor
+            this.canvasRef.nativeElement.style.cursor = 'grab';
+            return;
+        }
+
+        const deltaX = event.clientX - this.lastMouseX;
+        const deltaY = event.clientY - this.lastMouseY;
+
+        // Rotation aktualisieren
+        // Horizontale Mausbewegung → Y-Rotation (Yaw/Pan)
+        // Vertikale Mausbewegung → X-Rotation (Pitch/Tilt)
+        const newRotation: RoomRotation = {
+            x: this.clampRotation(this.roomRotation.x - deltaY * this.ROTATION_SENSITIVITY),
+            y: this.clampRotation(this.roomRotation.y - deltaX * this.ROTATION_SENSITIVITY),
+            z: 0  // Roll bleibt immer 0
+        };
+
+        // Pitch begrenzen (nicht über Kopf schauen)
+        newRotation.x = Math.max(-89, Math.min(89, newRotation.x));
+
+        // Intern aktualisieren
+        this.roomRotation = newRotation;
+        this.updateCameraTransform();
+
+        // Event nach außen senden
+        this.rotationChange.emit(newRotation);
+
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+    }
+
+    private onMouseUp = () => {
+        this.isDragging = false;
+        this.canvasRef.nativeElement.style.cursor = 'grab';
+    }
+
+    private onWheel = (event: WheelEvent) => {
+        // Mausrad komplett ignorieren - FOV nur über Slider!
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    private clampRotation(angle: number): number {
+        // Winkel auf -180 bis +180 begrenzen
+        while (angle > 180) angle -= 360;
+        while (angle < -180) angle += 360;
+        return angle;
     }
 
     private createScene() {
@@ -181,12 +283,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     // KAMERA-TRANSFORMATION
     // ========================================================================
 
-    /**
-     * Aktualisiert Kamera-Position und -Rotation
-     * 
-     * WICHTIG: roomRotation ist die Blickrichtung der Kamera (Pan/Tilt),
-     * nicht die Rotation des Raums!
-     */
     private updateCameraTransform() {
         // Position setzen (in Raum-Koordinaten)
         this.camera.position.set(
@@ -196,91 +292,134 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         );
 
         // Rotation setzen (Euler YXZ)
-        // roomRotation enthält die Kamera-Blickrichtung
         const xRad = THREE.MathUtils.degToRad(this.roomRotation.x);  // Pitch
         const yRad = THREE.MathUtils.degToRad(this.roomRotation.y);  // Yaw
         const zRad = THREE.MathUtils.degToRad(this.roomRotation.z);  // Roll
 
         this.camera.rotation.order = 'YXZ';
         this.camera.rotation.set(xRad, yRad, zRad);
-
-        // OrbitControls Target aktualisieren
-        if (this.controls) {
-            // Target ist ein Punkt VOR der Kamera (in Blickrichtung)
-            const direction = new THREE.Vector3(0, 0, -5);
-            direction.applyEuler(this.camera.rotation);
-
-            const target = new THREE.Vector3(
-                this.cameraPosition.x + direction.x,
-                this.cameraPosition.y + direction.y,
-                this.cameraPosition.z + direction.z
-            );
-
-            this.controls.target.copy(target);
-            this.controls.update();
-        }
     }
 
     // ========================================================================
-    // RAUM-GEOMETRIE
+    // RAUM-GEOMETRIE MIT TRANSPARENTEN WÄNDEN
     // ========================================================================
 
-    /**
-     * Erstellt den Raum-Wireframe
-     * 
-     * WICHTIG: Der Raum wird NICHT zentriert!
-     * Ursprung ist bei (0, 0, 0), Raum erstreckt sich bis (width, height, depth)
-     */
     private createRoomWireframe() {
         if (this.roomMesh) {
             this.scene.remove(this.roomMesh);
         }
 
         this.roomMesh = new THREE.Group();
+        this.wallMeshes = [];
 
-        // Box-Geometrie
-        const boxGeometry = new THREE.BoxGeometry(
-            this.roomParams.width,
-            this.roomParams.height,
-            this.roomParams.depth
-        );
+        const w = this.roomParams.width;
+        const h = this.roomParams.height;
+        const d = this.roomParams.depth;
 
-        // WICHTIG: Geometrie verschieben, sodass Ecke bei (0,0,0) ist
-        // BoxGeometry ist standardmäßig um (0,0,0) zentriert
-        boxGeometry.translate(
-            this.roomParams.width / 2,
-            this.roomParams.height / 2,
-            this.roomParams.depth / 2
-        );
+        // ====================================================================
+        // TRANSPARENTE WAND-FLÄCHEN
+        // ====================================================================
 
-        // Semi-transparente Flächen
-        const faceMaterial = new THREE.MeshBasicMaterial({
-            color: 0x3f51b5,
+        const wallOpacity = 0.15;  // Hohe Transparenz für gute Screenshot-Sichtbarkeit
+
+        // Front-Wand (z = 0) - ROT
+        const frontGeometry = new THREE.PlaneGeometry(w, h);
+        const frontMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
             transparent: true,
-            opacity: 0.1,
-            side: THREE.DoubleSide
+            opacity: wallOpacity,
+            side: THREE.DoubleSide,
+            depthWrite: false  // Verhindert Z-Fighting
         });
+        const frontMesh = new THREE.Mesh(frontGeometry, frontMaterial);
+        frontMesh.position.set(w / 2, h / 2, 0);
+        this.roomMesh.add(frontMesh);
+        this.wallMeshes.push(frontMesh);
 
-        const faceMesh = new THREE.Mesh(boxGeometry, faceMaterial);
-        this.roomMesh.add(faceMesh);
+        // Back-Wand (z = depth) - GRÜN
+        const backGeometry = new THREE.PlaneGeometry(w, h);
+        const backMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00,
+            transparent: true,
+            opacity: wallOpacity,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const backMesh = new THREE.Mesh(backGeometry, backMaterial);
+        backMesh.position.set(w / 2, h / 2, d);
+        this.roomMesh.add(backMesh);
+        this.wallMeshes.push(backMesh);
 
-        // Kanten (Wireframe)
+        // Left-Wand (x = 0) - BLAU
+        const leftGeometry = new THREE.PlaneGeometry(d, h);
+        const leftMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0000ff,
+            transparent: true,
+            opacity: wallOpacity,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const leftMesh = new THREE.Mesh(leftGeometry, leftMaterial);
+        leftMesh.position.set(0, h / 2, d / 2);
+        leftMesh.rotation.y = Math.PI / 2;
+        this.roomMesh.add(leftMesh);
+        this.wallMeshes.push(leftMesh);
+
+        // Right-Wand (x = width) - CYAN
+        const rightGeometry = new THREE.PlaneGeometry(d, h);
+        const rightMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: wallOpacity,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const rightMesh = new THREE.Mesh(rightGeometry, rightMaterial);
+        rightMesh.position.set(w, h / 2, d / 2);
+        rightMesh.rotation.y = Math.PI / 2;
+        this.roomMesh.add(rightMesh);
+        this.wallMeshes.push(rightMesh);
+
+        // Floor (y = 0) - GELB
+        const floorGeometry = new THREE.PlaneGeometry(w, d);
+        const floorMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffff00,
+            transparent: true,
+            opacity: wallOpacity,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
+        floorMesh.position.set(w / 2, 0, d / 2);
+        floorMesh.rotation.x = -Math.PI / 2;
+        this.roomMesh.add(floorMesh);
+        this.wallMeshes.push(floorMesh);
+
+        // ====================================================================
+        // KANTEN (WIREFRAME)
+        // ====================================================================
+
+        // Box-Geometrie für Kanten
+        const boxGeometry = new THREE.BoxGeometry(w, h, d);
+        boxGeometry.translate(w / 2, h / 2, d / 2);
+
         const edges = new THREE.EdgesGeometry(boxGeometry);
         const edgeMaterial = new THREE.LineBasicMaterial({
-            color: 0xff0000,
-            linewidth: 4,
-            opacity: 1.0
+            color: 0xffffff,  // Weiße Kanten für bessere Sichtbarkeit
+            linewidth: 2,
+            opacity: 0.9,
+            transparent: true
         });
         const edgeLines = new THREE.LineSegments(edges, edgeMaterial);
         this.roomMesh.add(edgeLines);
 
-        // Ecken-Markierungen
+        // ====================================================================
+        // ECKEN-MARKIERUNGEN
+        // ====================================================================
+
         this.addCornerMarkers(this.roomMesh);
 
-        // Wand-Labels
-        this.addWallLabels(this.roomMesh);
-
-        // Raum bei (0,0,0) positionieren (keine zusätzliche Verschiebung!)
+        // Raum bei (0,0,0) positionieren
         this.roomMesh.position.set(0, 0, 0);
 
         this.scene.add(this.roomMesh);
@@ -291,7 +430,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         const h = this.roomParams.height;
         const d = this.roomParams.depth;
 
-        // Ecken bei (0,0,0) bis (w,h,d)
         const corners = [
             [0, 0, 0],
             [w, 0, 0],
@@ -303,56 +441,14 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
             [w, h, d],
         ];
 
-        const sphereGeometry = new THREE.SphereGeometry(0.08, 16, 16);
-        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const sphereGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
         corners.forEach(pos => {
             const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
             sphere.position.set(pos[0], pos[1], pos[2]);
             group.add(sphere);
         });
-    }
-
-    private addWallLabels(group: THREE.Group) {
-        const w = this.roomParams.width;
-        const h = this.roomParams.height;
-        const d = this.roomParams.depth;
-
-        const markerGeometry = new THREE.PlaneGeometry(0.3, 0.3);
-
-        // Front (z = 0) - Rot
-        const frontMarker = new THREE.Mesh(
-            markerGeometry,
-            new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide })
-        );
-        frontMarker.position.set(w / 2, h / 2, -0.1);
-        group.add(frontMarker);
-
-        // Back (z = depth) - Grün
-        const backMarker = new THREE.Mesh(
-            markerGeometry,
-            new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide })
-        );
-        backMarker.position.set(w / 2, h / 2, d + 0.1);
-        group.add(backMarker);
-
-        // Left (x = 0) - Blau
-        const leftMarker = new THREE.Mesh(
-            markerGeometry,
-            new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide })
-        );
-        leftMarker.position.set(-0.1, h / 2, d / 2);
-        leftMarker.rotation.y = Math.PI / 2;
-        group.add(leftMarker);
-
-        // Right (x = width) - Cyan
-        const rightMarker = new THREE.Mesh(
-            markerGeometry,
-            new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide })
-        );
-        rightMarker.position.set(w + 0.1, h / 2, d / 2);
-        rightMarker.rotation.y = Math.PI / 2;
-        group.add(rightMarker);
     }
 
     private createGrid() {
@@ -363,7 +459,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         const size = Math.max(this.roomParams.width, this.roomParams.depth) * 1.5;
         this.gridHelper = new THREE.GridHelper(size, 20, 0x00ff00, 0x444444);
 
-        // Grid am Boden (y=0), zentriert im Raum
         this.gridHelper.position.set(
             this.roomParams.width / 2,
             0,
@@ -390,7 +485,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
 
     private animate = () => {
         this.animationId = requestAnimationFrame(this.animate);
-        this.controls?.update();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -398,13 +492,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     // RAYCASTING (für Stage5)
     // ========================================================================
 
-    /**
-     * Bestimmt welche Wand an einer Bildschirm-Position getroffen wird
-     * 
-     * @param screenX - X-Position relativ zum Canvas (Pixel)
-     * @param screenY - Y-Position relativ zum Canvas (Pixel)
-     * @returns Wand-Name, 3D-Punkt und 2D-Projektion
-     */
     getWallAtScreenPosition(screenX: number, screenY: number): {
         wall: 'back' | 'left' | 'right' | 'front' | 'floor' | null;
         point3D: { x: number; y: number; z: number } | null;
@@ -412,14 +499,12 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     } {
         const rect = this.renderer.domElement.getBoundingClientRect();
 
-        // Pixel zu NDC (Normalized Device Coordinates)
         const ndcX = ((screenX) / rect.width) * 2 - 1;
         const ndcY = -((screenY) / rect.height) * 2 + 1;
 
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
 
-        // Wand-Ebenen definieren (konsistent mit Koordinatensystem!)
         const walls: WallInfo[] = [
             {
                 name: 'back',
@@ -451,7 +536,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
                 const inBounds = this.isPointInWallBounds(intersection, wall.name);
                 const distance = intersection.distanceTo(this.camera.position);
 
-                if (inBounds && distance > 0.01) {  // Nicht zu nah an der Kamera
+                if (inBounds && distance > 0.01) {
                     intersections.push({ wall, point: intersection, distance });
                 }
             }
@@ -461,7 +546,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
             return { wall: null, point3D: null, point2D: null };
         }
 
-        // Nächste Wand (von Kamera aus gesehen)
         const closest = intersections.reduce((prev, curr) =>
             curr.distance < prev.distance ? curr : prev
         );
@@ -479,37 +563,34 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         };
     }
 
-    /**
-     * Prüft ob ein 3D-Punkt innerhalb der Wand-Grenzen liegt
-     */
     private isPointInWallBounds(point: THREE.Vector3, wallName: string): boolean {
-        const epsilon = 0.1;  // 10cm Toleranz
+        const epsilon = 0.1;
         const w = this.roomParams.width;
         const h = this.roomParams.height;
         const d = this.roomParams.depth;
 
         switch (wallName) {
-            case 'back':  // z = depth
+            case 'back':
                 return point.x >= -epsilon && point.x <= w + epsilon &&
                     point.y >= -epsilon && point.y <= h + epsilon &&
                     Math.abs(point.z - d) < epsilon;
 
-            case 'front':  // z = 0
+            case 'front':
                 return point.x >= -epsilon && point.x <= w + epsilon &&
                     point.y >= -epsilon && point.y <= h + epsilon &&
                     Math.abs(point.z) < epsilon;
 
-            case 'left':  // x = 0
+            case 'left':
                 return point.z >= -epsilon && point.z <= d + epsilon &&
                     point.y >= -epsilon && point.y <= h + epsilon &&
                     Math.abs(point.x) < epsilon;
 
-            case 'right':  // x = width
+            case 'right':
                 return point.z >= -epsilon && point.z <= d + epsilon &&
                     point.y >= -epsilon && point.y <= h + epsilon &&
                     Math.abs(point.x - w) < epsilon;
 
-            case 'floor':  // y = 0
+            case 'floor':
                 return point.x >= -epsilon && point.x <= w + epsilon &&
                     point.z >= -epsilon && point.z <= d + epsilon &&
                     Math.abs(point.y) < epsilon;
@@ -519,9 +600,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         }
     }
 
-    /**
-     * Projiziert einen 3D-Punkt auf 2D-Bildschirmkoordinaten
-     */
     private project3DToScreen(point3D: THREE.Vector3): { x: number; y: number } {
         const projected = point3D.clone().project(this.camera);
         const rect = this.renderer.domElement.getBoundingClientRect();
@@ -532,9 +610,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         };
     }
 
-    /**
-     * Gibt das Canvas-Element zurück (für Overlay-Positionierung)
-     */
     getCanvasElement(): HTMLCanvasElement {
         return this.renderer.domElement;
     }
@@ -554,9 +629,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
     // PUBLIC UPDATE METHODS
     // ========================================================================
 
-    /**
-     * Aktualisiert die Raum-Dimensionen
-     */
     public updateRoom(params: RoomParams) {
         this.roomParams = params;
         this.createRoomWireframe();
@@ -565,77 +637,47 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         }
     }
 
-    /**
-     * Aktualisiert die Kamera-Blickrichtung (Pan/Tilt)
-     */
     public updateRoomRotation(rotation: RoomRotation) {
         this.roomRotation = rotation;
         this.updateCameraTransform();
     }
 
-    /**
-     * Aktualisiert die Kamera-Position
-     */
     public updateCameraPosition(position: { x: number; y: number; z: number }) {
         this.cameraPosition = position;
         this.updateCameraTransform();
     }
 
-    /**
-     * NEU: Aktualisiert das Field of View
-     * 
-     * @param fovY - Vertikales FOV in Grad (typisch: 50-70° normal, 90-120° weitwinkel)
-     */
     public updateFov(fovY: number) {
         this.fovY = fovY;
         if (this.camera) {
             this.camera.fov = fovY;
             this.camera.updateProjectionMatrix();
-
             console.log(`📐 FOV aktualisiert: ${fovY}°`);
         }
     }
 
-    /**
-     * Gibt das aktuelle FOV zurück
-     */
     public getFov(): number {
         return this.camera?.fov ?? this.fovY;
     }
 
-    /**
-     * Aktualisiert die Hintergrund-Rotation (UI-Parameter)
-     */
     public updateBackgroundRotation(rotation: number) {
         this.backgroundRotation = rotation;
     }
 
-    /**
-     * Aktualisiert die Hintergrund-Skalierung (UI-Parameter)
-     */
     public updateBackgroundScale(scale: number) {
         this.backgroundScale = scale;
     }
 
-    /**
-     * Aktualisiert den Hintergrund-Offset (UI-Parameter)
-     */
     public updateBackgroundOffset(x: number, y: number) {
         this.backgroundOffsetX = x;
         this.backgroundOffsetY = y;
     }
 
-    /**
-     * Lädt ein neues Hintergrundbild
-     */
     public updateBackground(file: File) {
         this.backgroundImage = file;
         this.loadBackgroundImage(file);
     }
 
-    /**
-     * Schaltet das Grid ein/aus
-     */
     public toggleGrid(show: boolean) {
         this.showGrid = show;
         if (show && !this.gridHelper) {
@@ -646,13 +688,21 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy, OnChanges
         }
     }
 
+    /**
+     * Setzt die Wand-Transparenz
+     * @param opacity - 0.0 (unsichtbar) bis 1.0 (undurchsichtig)
+     */
+    public setWallOpacity(opacity: number) {
+        this.wallMeshes.forEach(mesh => {
+            const material = mesh.material as THREE.MeshBasicMaterial;
+            material.opacity = opacity;
+        });
+    }
+
     // ========================================================================
     // DEBUG-HILFSMETHODEN
     // ========================================================================
 
-    /**
-     * Gibt Debug-Informationen über den aktuellen Zustand aus
-     */
     public getDebugInfo(): object {
         return {
             room: this.roomParams,

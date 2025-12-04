@@ -347,6 +347,21 @@ export class Stage3CalibrationComponent implements OnInit {
     });
   }
 
+  /**
+   * NEU: Event-Handler für Maus-Drag im Viewer
+   * Wird aufgerufen wenn der User im Viewer mit der Maus zieht
+   */
+  onViewerRotationChange(rotation: RoomRotation) {
+    this.currentCameraRotation = {
+      x: rotation.x,
+      y: rotation.y,
+      z: rotation.z,
+      order: 'YXZ'
+    };
+    // Slider synchronisieren
+    this.cdr.detectChanges();
+  }
+
   /** NEU: FOV-Änderung */
   onFovChange() {
     // FOV direkt an den Viewer übergeben
