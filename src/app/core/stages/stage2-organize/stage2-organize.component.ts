@@ -51,81 +51,62 @@ interface ScreenshotItem {
 
         <mat-card-content>
           <p class="instructions">
-            Wähle für jeden Screenshot aus, wofür er verwendet werden soll, und ordne Zeitstempel zu
-            (für Schatten-Markierungen).
+            Wähle den Referenzpunkt (t0) und ordne den anderen Screenshots Zeitoffsets zu.
+            Alle Screenshots werden automatisch für Kalibrierung und Schattenanalyse verwendet.
           </p>
 
-          <!-- Screenshot-Liste -->
-          <div class="screenshot-list">
+          <!-- Screenshot-Grid -->
+          <div class="screenshot-grid">
             <mat-card *ngFor="let item of screenshots" class="screenshot-card">
-              <div class="screenshot-row">
-                <!-- Vorschaubild -->
-                <div class="screenshot-preview">
-                  <img
-                    [src]="item.previewUrl"
-                    [alt]="item.file.name"
-                    (click)="showFullscreen(item)"
-                  />
-                  <div class="filename">{{ item.file.name }}</div>
-                </div>
+              <!-- Vorschaubild -->
+              <div class="screenshot-preview" (click)="showFullscreen(item)">
+                <img [src]="item.previewUrl" [alt]="item.file.name" />
+                <button
+                  mat-icon-button
+                  class="delete-button"
+                  color="warn"
+                  (click)="removeScreenshot(item.id); $event.stopPropagation()"
+                  matTooltip="Screenshot entfernen"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
 
-                <!-- Einstellungen -->
-                <div class="screenshot-settings">
-                  <div class="checkboxes">
-                    <mat-checkbox [(ngModel)]="item.useForCalibration">
-                      Für Kalibrierung & Schatten verwenden
-                    </mat-checkbox>
+              <div class="screenshot-info">
+                <div class="filename" [title]="item.file.name">{{ item.file.name }}</div>
 
-
-                  </div>
-
-                  <!-- Zeitstempel (nur wenn für Schatten) -->
-                  <div class="timestamp-section">
-                    <mat-divider></mat-divider>
-                    <h4>Zeitstempel</h4>
-
-                    <div class="timestamp-options">
-                      <mat-checkbox
-                        [checked]="item.timestampType === 'reference'"
-                        (change)="onReferenceToggle(item.id, $event.checked)"
-                      >
-                        Dies ist t0 (Referenzpunkt)
-                      </mat-checkbox>
-
-                      <div class="offset-input" *ngIf="item.timestampType === 'offset'">
-                        <mat-form-field appearance="outline">
-                          <mat-label>t0 + Sekunden</mat-label>
-                          <input
-                            matInput
-                            type="number"
-                            [(ngModel)]="item.offsetSeconds"
-                            (ngModelChange)="updateTimestamp(item)"
-                          />
-                          <mat-icon matSuffix>schedule</mat-icon>
-                        </mat-form-field>
-                      </div>
-                    </div>
-
-                    <div class="timestamp-display">
-                      <mat-chip-listbox>
-                        <mat-chip-option selected>
-                          {{ item.timestamp || 't0+0' }}
-                        </mat-chip-option>
-                      </mat-chip-listbox>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Aktionen -->
-                <div class="screenshot-actions">
-                  <button
-                    mat-icon-button
-                    color="warn"
-                    (click)="removeScreenshot(item.id)"
-                    matTooltip="Screenshot entfernen"
+                <!-- t0 Auswahl -->
+                <div class="timestamp-section">
+                  <mat-checkbox
+                    [checked]="item.timestampType === 'reference'"
+                    [disabled]="hasReferencePoint && item.timestampType !== 'reference'"
+                    (change)="onReferenceToggle(item.id, $event.checked)"
                   >
-                    <mat-icon>delete</mat-icon>
-                  </button>
+                    Referenzpunkt (t0)
+                  </mat-checkbox>
+
+                  <!-- Offset-Eingabe -->
+                  <div class="offset-input" *ngIf="item.timestampType === 'offset'">
+                    <mat-form-field appearance="outline" class="compact-field">
+                      <mat-label>Offset (Sekunden)</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        [(ngModel)]="item.offsetSeconds"
+                        (ngModelChange)="updateTimestamp(item)"
+                      />
+                      <mat-icon matSuffix>schedule</mat-icon>
+                    </mat-form-field>
+                  </div>
+
+                  <!-- Zeitstempel-Anzeige -->
+                  <div class="timestamp-display">
+                    <mat-chip-listbox>
+                      <mat-chip-option [selected]="true" [class.reference-chip]="item.timestampType === 'reference'">
+                        {{ item.timestamp || 't0+0' }}
+                      </mat-chip-option>
+                    </mat-chip-listbox>
+                  </div>
                 </div>
               </div>
             </mat-card>
@@ -139,12 +120,17 @@ interface ScreenshotItem {
             <mat-card-content>
               <div class="summary-item">
                 <mat-icon>photo_camera</mat-icon>
-                <span>{{ calibrationCount }} Screenshots für Raum-Kalibrierung</span>
+                <span>{{ screenshots.length }} Screenshots werden verwendet</span>
               </div>
 
               <div class="summary-item" *ngIf="!hasReferencePoint">
                 <mat-icon color="warn">warning</mat-icon>
-                <span class="warning">Kein Referenzpunkt (t0) definiert!</span>
+                <span class="warning">Bitte einen Referenzpunkt (t0) definieren!</span>
+              </div>
+
+              <div class="summary-item" *ngIf="hasReferencePoint">
+                <mat-icon color="primary">check_circle</mat-icon>
+                <span>Referenzpunkt (t0) definiert</span>
               </div>
             </mat-card-content>
           </mat-card>
@@ -165,118 +151,139 @@ interface ScreenshotItem {
   styles: [
     `
       .stage-container {
-        max-width: 1200px;
-        margin: 50px auto;
+        max-width: 1400px;
+        margin: 30px auto;
         padding: 20px;
       }
 
       .instructions {
         color: #666;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
+        font-size: 15px;
       }
 
-      .screenshot-list {
-        display: flex;
-        flex-direction: column;
+      /* Grid-Layout für Screenshots */
+      .screenshot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 20px;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
+      }
+
+      @media (min-width: 1200px) {
+        .screenshot-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
       }
 
       .screenshot-card {
-        padding: 15px;
-      }
-
-      .screenshot-row {
+        padding: 0;
+        overflow: hidden;
         display: flex;
-        gap: 20px;
-        align-items: flex-start;
+        flex-direction: column;
+        height: 100%;
       }
 
+      /* Vorschaubild */
       .screenshot-preview {
-        flex-shrink: 0;
+        position: relative;
+        width: 100%;
+        height: 180px;
+        overflow: hidden;
         cursor: pointer;
+        background: #f5f5f5;
       }
 
       .screenshot-preview img {
-        width: 150px;
-        height: 100px;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        border-radius: 4px;
-        border: 2px solid #ddd;
-        transition: border-color 0.3s;
+        transition: transform 0.3s;
       }
 
-      .screenshot-preview img:hover {
-        border-color: #3f51b5;
+      .screenshot-preview:hover img {
+        transform: scale(1.05);
+      }
+
+      .delete-button {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .delete-button:hover {
+        background: rgba(255, 255, 255, 1);
+      }
+
+      /* Info-Bereich */
+      .screenshot-info {
+        padding: 16px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
       }
 
       .filename {
-        font-size: 12px;
-        color: #666;
-        margin-top: 5px;
-        text-align: center;
+        font-size: 13px;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 12px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        width: 150px;
       }
 
-      .screenshot-settings {
-        flex-grow: 1;
-      }
-
-      .checkboxes {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 15px;
-      }
-
+      /* Zeitstempel-Sektion */
       .timestamp-section {
-        margin-top: 15px;
-      }
-
-      .timestamp-section h4 {
-        margin: 15px 0 10px 0;
-        font-size: 14px;
-        color: #666;
-      }
-
-      .timestamp-options {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        margin-bottom: 10px;
       }
 
       .offset-input {
-        margin-left: 30px;
+        margin-left: 0;
       }
 
-      .offset-input mat-form-field {
-        width: 200px;
+      .compact-field {
+        width: 100%;
+        font-size: 13px;
+      }
+
+      .compact-field ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+        display: none;
       }
 
       .timestamp-display {
-        margin-top: 10px;
+        margin-top: 8px;
       }
 
-      .screenshot-actions {
+      .timestamp-display mat-chip-listbox {
         display: flex;
-        flex-direction: column;
-        gap: 10px;
       }
 
+      .timestamp-display mat-chip-option {
+        font-weight: 500;
+        font-size: 13px;
+      }
+
+      .reference-chip {
+        background-color: #3f51b5 !important;
+        color: white !important;
+      }
+
+      /* Zusammenfassung */
       .summary-card {
-        background: #f5f5f5;
-        margin-top: 20px;
+        background: #f8f9fa;
+        margin-top: 25px;
       }
 
       .summary-item {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         margin: 10px 0;
+        font-size: 14px;
       }
 
       .summary-item mat-icon {
@@ -286,6 +293,13 @@ interface ScreenshotItem {
       .summary-item .warning {
         color: #f44336;
         font-weight: 500;
+      }
+
+      /* Responsive Anpassungen */
+      @media (max-width: 768px) {
+        .screenshot-grid {
+          grid-template-columns: 1fr;
+        }
       }
     `,
   ],
@@ -318,8 +332,8 @@ export class Stage2OrganizeComponent implements OnInit {
       id: sf.id,
       file: sf.file,
       previewUrl: this.createPreviewUrl(sf.file),
-      useForCalibration: sf.forCalibration,
-      forShadows: sf.forShadows,
+      useForCalibration: true,  // Automatisch für alle Screenshots
+      forShadows: true,          // Automatisch für alle Screenshots
       timestamp: sf.timestamp || '',
       timestampType: sf.timestamp === 't0' ? ('reference' as const) : ('offset' as const),
       offsetSeconds: this.parseOffset(sf.timestamp),
@@ -394,7 +408,6 @@ export class Stage2OrganizeComponent implements OnInit {
     return this.screenshots.filter((s) => s.useForCalibration).length;
   }
 
-
   get hasReferencePoint(): boolean {
     return this.screenshots.some((s) => s.timestampType === 'reference');
   }
@@ -414,7 +427,7 @@ export class Stage2OrganizeComponent implements OnInit {
 
   get canProceed(): boolean {
     return (
-      this.calibrationCount >= 3
+      this.calibrationCount >= 3 && this.hasReferencePoint
     );
   }
 
