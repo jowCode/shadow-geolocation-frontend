@@ -1,30 +1,42 @@
 <div class="stage-container">
   <mat-card>
-    <mat-card-header>
-      <mat-card-title>Schatten-Markierung</mat-card-title>
-      <mat-card-subtitle>
-        Screenshot {{ currentIndex + 1 }} / {{ screenshots.length }} ·
-        {{ currentScreenshot?.timestamp }} ·
-        {{ progressText }}
-      </mat-card-subtitle>
-    </mat-card-header>
+    <mat-card-actions align="end">
+      <button mat-button (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Zurück
+      </button>
+
+      <button
+        *ngFor="let s of screenshots; let i = index"
+        mat-stroked-button
+        [color]="i === currentIndex ? 'primary' : ''"
+        [class.complete]="getCompleteObjectsCount(s) >= 2"
+        (click)="goToScreenshot(i)"
+      >
+        <mat-icon *ngIf="getCompleteObjectsCount(s) >= 2">check_circle</mat-icon>
+        <mat-icon *ngIf="getCompleteObjectsCount(s) < 2">radio_button_unchecked</mat-icon>
+        {{ i + 1 }}
+      </button>
+
+      <div class="spacer"></div>
+
+      <button
+        mat-raised-button
+        color="accent"
+        [disabled]="!hasAnyShadows"
+        (click)="onSaveShadows()"
+      >
+        <mat-icon>save</mat-icon>
+        Speichern
+      </button>
+
+      <button mat-raised-button color="primary" [disabled]="!canProceed" (click)="onFinish()">
+        <mat-icon>done_all</mat-icon>
+        Abschließen
+      </button>
+    </mat-card-actions>
 
     <mat-card-content>
-      <!-- Screenshot Navigation -->
-      <div class="screenshot-nav">
-        <button
-          *ngFor="let s of screenshots; let i = index"
-          mat-stroked-button
-          [color]="i === currentIndex ? 'primary' : ''"
-          [class.complete]="getCompleteObjectsCount(s) >= 2"
-          (click)="goToScreenshot(i)"
-        >
-          <mat-icon *ngIf="getCompleteObjectsCount(s) >= 2">check_circle</mat-icon>
-          <mat-icon *ngIf="getCompleteObjectsCount(s) < 2">radio_button_unchecked</mat-icon>
-          {{ i + 1 }}
-        </button>
-      </div>
-
       <!-- Main Layout: Sidebar + Viewer -->
       <div class="main-layout">
         <!-- LEFT SIDEBAR: Objekt-Liste -->
@@ -112,52 +124,10 @@
               Noch keine Objekte hinzugefügt
             </div>
           </div>
-
-          <!-- Info Box -->
-          <div class="info-box">
-            <mat-icon>info</mat-icon>
-            <div class="info-text">
-              <strong>Workflow:</strong>
-              <ol>
-                <li>Objekt hinzufügen</li>
-                <li>3× klicken: Objekt → Schatten</li>
-                <li>Nächstes Objekt</li>
-                <li>Min. 2 Objekte pro Screenshot</li>
-              </ol>
-            </div>
-          </div>
-
-          <!-- NEU: Koordinaten-Info -->
-          <div class="info-box coordinates-info">
-            <mat-icon>straighten</mat-icon>
-            <div class="info-text">
-              <strong>Koordinaten:</strong>
-              <p>Normalisiert (0-1), unabhängig von Bildschirmgröße</p>
-            </div>
-          </div>
         </div>
 
         <!-- CENTER: Three.js Viewer + Overlay Canvas -->
         <div class="viewer-column">
-          <!-- Controls -->
-          <div class="viewer-controls">
-            <mat-slide-toggle [(ngModel)]="showRoomWireframe" (change)="onToggleWireframe()">
-              <mat-icon>grid_on</mat-icon>
-              Raum-Linien
-            </mat-slide-toggle>
-
-            <mat-slide-toggle [(ngModel)]="showWallLabels" (change)="drawMarkings()">
-              <mat-icon>label</mat-icon>
-              Wand-Namen
-            </mat-slide-toggle>
-
-            <!-- NEU: FOV-Anzeige (read-only) -->
-            <div class="fov-display">
-              <mat-icon>camera</mat-icon>
-              <span>FOV: {{ globalFovY }}°</span>
-            </div>
-          </div>
-
           <!-- Viewer Container mit Overlay -->
           <div class="viewer-container">
             <!-- Three.js Viewer (read-only, mit FOV!) -->
@@ -213,29 +183,5 @@
         </div>
       </div>
     </mat-card-content>
-
-    <mat-card-actions align="end">
-      <button mat-button (click)="onBack()">
-        <mat-icon>arrow_back</mat-icon>
-        Zurück
-      </button>
-
-      <div class="spacer"></div>
-
-      <button
-        mat-raised-button
-        color="accent"
-        [disabled]="!hasAnyShadows"
-        (click)="onSaveShadows()"
-      >
-        <mat-icon>save</mat-icon>
-        Speichern
-      </button>
-
-      <button mat-raised-button color="primary" [disabled]="!canProceed" (click)="onFinish()">
-        <mat-icon>done_all</mat-icon>
-        Abschließen
-      </button>
-    </mat-card-actions>
   </mat-card>
 </div>

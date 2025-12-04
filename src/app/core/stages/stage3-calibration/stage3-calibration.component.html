@@ -10,7 +10,6 @@
         *ngFor="let step of calibrationSteps; let i = index"
         mat-stroked-button
         [color]="i === currentStepIndex ? 'primary' : ''"
-        [class.active]="i === currentStepIndex"
         [class.completed]="step.completed"
         (click)="goToScreenshot(i)"
       >
