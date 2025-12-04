@@ -1,36 +1,62 @@
 <div class="stage-container">
   <mat-card>
-    <mat-card-header>
-      <mat-card-subtitle>
-        Screenshot {{ currentStepIndex + 1 }} / {{ calibrationSteps.length }} ·
-        {{ completedCount }} kalibriert
-      </mat-card-subtitle>
-    </mat-card-header>
+    <mat-card-actions align="end">
+      <button mat-button (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Zurück
+      </button>
+
+      <button
+        *ngFor="let step of calibrationSteps; let i = index"
+        mat-stroked-button
+        [color]="i === currentStepIndex ? 'primary' : ''"
+        [class.active]="i === currentStepIndex"
+        [class.completed]="step.completed"
+        (click)="goToScreenshot(i)"
+      >
+        <mat-icon *ngIf="step.completed">check_circle</mat-icon>
+        <mat-icon *ngIf="!step.completed">radio_button_unchecked</mat-icon>
+        {{ i + 1 }}
+      </button>
+
+      <div class="spacer"></div>
+
+      <button mat-raised-button color="accent" (click)="onSaveCurrentScreenshot()">
+        <mat-icon>save</mat-icon>
+        Speichern
+      </button>
+
+      <button
+        mat-raised-button
+        color="primary"
+        [disabled]="completedCount < 2"
+        (click)="onProceedToShadows()"
+      >
+        <mat-icon>wb_sunny</mat-icon>
+        Weiter zur Schatten-Markierung
+      </button>
+    </mat-card-actions>
 
     <mat-card-content>
-      <!-- SCREENSHOT-NAVIGATION -->
-      <div class="screenshot-navigation">
-        <button
-          *ngFor="let step of calibrationSteps; let i = index"
-          mat-stroked-button
-          [color]="i === currentStepIndex ? 'primary' : ''"
-          [class.active]="i === currentStepIndex"
-          [class.completed]="step.completed"
-          (click)="goToScreenshot(i)"
-        >
-          <mat-icon *ngIf="step.completed">check_circle</mat-icon>
-          <mat-icon *ngIf="!step.completed">radio_button_unchecked</mat-icon>
-          {{ i + 1 }}
-        </button>
-      </div>
-
       <!-- DREI-SPALTEN-LAYOUT -->
       <div class="three-column-layout">
         <!-- LINKE SPALTE: Screenshot-Anpassungen -->
         <div class="left-column">
-          <!-- Screenshot-Rotation -->
           <div class="control-group">
-            <h3>Screenshot Rotation</h3>
+            <div class="slider-row">
+              <label matTooltip="Screenshot-Größe (Focal Length)">S:</label>
+              <mat-slider min="10" max="200" step="1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentBackgroundScale"
+                  (ngModelChange)="onBackgroundScaleChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentBackgroundScale }}%</span>
+            </div>
+          </div>
+
+          <div class="control-group">
             <div class="slider-row">
               <mat-icon class="slider-icon" matTooltip="Rotation">rotate_right</mat-icon>
               <mat-slider min="0" max="360" step="1">
@@ -42,11 +68,6 @@
               </mat-slider>
               <span class="value">{{ currentBackgroundRotation }}°</span>
             </div>
-          </div>
-
-          <!-- Screenshot-Position -->
-          <div class="control-group">
-            <h3>Screenshot Position</h3>
 
             <div class="slider-row">
               <mat-icon class="slider-icon" matTooltip="Horizontal">swap_horiz</mat-icon>
@@ -70,6 +91,44 @@
                 />
               </mat-slider>
               <span class="value">{{ currentBackgroundOffsetY }}%</span>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="slider-row">
+              <label>B:</label>
+              <mat-slider min="2" max="15" step="0.1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentRoomParams.width"
+                  (ngModelChange)="onRoomChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentRoomParams.width.toFixed(1) }}m</span>
+            </div>
+
+            <div class="slider-row">
+              <label>T:</label>
+              <mat-slider min="2" max="15" step="0.1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentRoomParams.depth"
+                  (ngModelChange)="onRoomChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentRoomParams.depth.toFixed(1) }}m</span>
+            </div>
+
+            <div class="slider-row">
+              <label>H:</label>
+              <mat-slider min="2" max="5" step="0.1">
+                <input
+                  matSliderThumb
+                  [(ngModel)]="currentRoomParams.height"
+                  (ngModelChange)="onRoomChange()"
+                />
+              </mat-slider>
+              <span class="value">{{ currentRoomParams.height.toFixed(1) }}m</span>
             </div>
           </div>
         </div>
@@ -197,60 +256,6 @@
         </div>
       </div>
 
-      <!-- RAUM-DIMENSIONEN (GLOBAL) - HORIZONTAL BAR -->
-      <div class="room-dimensions-bar">
-        <h3>Globale Parameter</h3>
-        <div class="room-slider-group">
-          <div class="room-slider-item">
-            <label>B:</label>
-            <mat-slider min="2" max="15" step="0.1">
-              <input
-                matSliderThumb
-                [(ngModel)]="currentRoomParams.width"
-                (ngModelChange)="onRoomChange()"
-              />
-            </mat-slider>
-            <span class="value">{{ currentRoomParams.width.toFixed(1) }}m</span>
-          </div>
-
-          <div class="room-slider-item">
-            <label>T:</label>
-            <mat-slider min="2" max="15" step="0.1">
-              <input
-                matSliderThumb
-                [(ngModel)]="currentRoomParams.depth"
-                (ngModelChange)="onRoomChange()"
-              />
-            </mat-slider>
-            <span class="value">{{ currentRoomParams.depth.toFixed(1) }}m</span>
-          </div>
-
-          <div class="room-slider-item">
-            <label>H:</label>
-            <mat-slider min="2" max="5" step="0.1">
-              <input
-                matSliderThumb
-                [(ngModel)]="currentRoomParams.height"
-                (ngModelChange)="onRoomChange()"
-              />
-            </mat-slider>
-            <span class="value">{{ currentRoomParams.height.toFixed(1) }}m</span>
-          </div>
-
-          <div class="room-slider-item">
-            <label matTooltip="Screenshot-Größe (Focal Length)">S:</label>
-            <mat-slider min="10" max="200" step="1">
-              <input
-                matSliderThumb
-                [(ngModel)]="currentBackgroundScale"
-                (ngModelChange)="onBackgroundScaleChange()"
-              />
-            </mat-slider>
-            <span class="value">{{ currentBackgroundScale }}%</span>
-          </div>
-        </div>
-      </div>
-
       <!-- PROGRESS BAR -->
       <div class="calibration-progress">
         <div class="progress-header">
@@ -295,43 +300,18 @@
                 <span class="value">{{ positionConfidence }}</span>
               </div>
             </div>
+            <button
+              mat-raised-button
+              color="primary"
+              [disabled]="completedCount < 2 || isOptimizing"
+              (click)="onStartOptimization()"
+            >
+              <mat-icon>auto_fix_high</mat-icon>
+              Optimierung starten
+            </button>
           </div>
         </mat-expansion-panel>
       </div>
     </mat-card-content>
-
-    <mat-card-actions align="end">
-      <button mat-button (click)="onBack()">
-        <mat-icon>arrow_back</mat-icon>
-        Zurück
-      </button>
-
-      <div class="spacer"></div>
-
-      <button mat-raised-button color="accent" (click)="onSaveCurrentScreenshot()">
-        <mat-icon>save</mat-icon>
-        Speichern
-      </button>
-
-      <button
-        mat-raised-button
-        color="primary"
-        [disabled]="completedCount < 2 || isOptimizing"
-        (click)="onStartOptimization()"
-      >
-        <mat-icon>auto_fix_high</mat-icon>
-        Optimierung starten
-      </button>
-
-      <button
-        mat-raised-button
-        color="primary"
-        [disabled]="completedCount < 2"
-        (click)="onProceedToShadows()"
-      >
-        <mat-icon>wb_sunny</mat-icon>
-        Weiter zur Schatten-Markierung
-      </button>
-    </mat-card-actions>
   </mat-card>
 </div>
