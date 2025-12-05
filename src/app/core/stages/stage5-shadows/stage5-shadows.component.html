@@ -1,30 +1,42 @@
 <div class="stage-container">
   <mat-card>
-    <mat-card-header>
-      <mat-card-title>Schatten-Markierung</mat-card-title>
-      <mat-card-subtitle>
-        Screenshot {{ currentIndex + 1 }} / {{ screenshots.length }} ·
-        {{ currentScreenshot?.timestamp }} ·
-        {{ progressText }}
-      </mat-card-subtitle>
-    </mat-card-header>
+    <mat-card-actions align="end">
+      <button mat-button (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Zurück
+      </button>
+
+      <button
+        *ngFor="let s of screenshots; let i = index"
+        mat-stroked-button
+        [color]="i === currentIndex ? 'primary' : ''"
+        [class.complete]="getCompleteObjectsCount(s) >= 2"
+        (click)="goToScreenshot(i)"
+      >
+        <mat-icon *ngIf="getCompleteObjectsCount(s) >= 2">check_circle</mat-icon>
+        <mat-icon *ngIf="getCompleteObjectsCount(s) < 2">radio_button_unchecked</mat-icon>
+        {{ i + 1 }}
+      </button>
+
+      <div class="spacer"></div>
+
+      <button
+        mat-raised-button
+        color="accent"
+        [disabled]="!hasAnyShadows"
+        (click)="onSaveShadows()"
+      >
+        <mat-icon>save</mat-icon>
+        Speichern
+      </button>
+
+      <button mat-raised-button color="primary" [disabled]="!canProceed" (click)="onFinish()">
+        <mat-icon>done_all</mat-icon>
+        Abschließen
+      </button>
+    </mat-card-actions>
 
     <mat-card-content>
-      <!-- Screenshot Navigation -->
-      <div class="screenshot-nav">
-        <button
-          *ngFor="let s of screenshots; let i = index"
-          mat-stroked-button
-          [color]="i === currentIndex ? 'primary' : ''"
-          [class.complete]="getCompleteObjectsCount(s) >= 2"
-          (click)="goToScreenshot(i)"
-        >
-          <mat-icon *ngIf="getCompleteObjectsCount(s) >= 2">check_circle</mat-icon>
-          <mat-icon *ngIf="getCompleteObjectsCount(s) < 2">radio_button_unchecked</mat-icon>
-          {{ i + 1 }}
-        </button>
-      </div>
-
       <!-- Main Layout: Sidebar + Viewer -->
       <div class="main-layout">
         <!-- LEFT SIDEBAR: Objekt-Liste -->
@@ -59,7 +71,6 @@
                   {{ obj.name }}
                 </mat-panel-title>
                 <mat-panel-description>
-                  <!-- ✅ BEHOBEN: Zeigt aktuellen Stand (was schon fertig ist) -->
                   {{ obj.pairs.length || 0 }} / 3 Punkte
                 </mat-panel-description>
               </mat-expansion-panel-header>
@@ -72,12 +83,12 @@
                     <div class="pair-details">
                       <div class="pair-title">Punkt {{ pairIdx + 1 }}</div>
                       <div class="pair-data">
-                        Objekt: ({{ pair.objectPoint.x | number : '1.0-0' }},
-                        {{ pair.objectPoint.y | number : '1.0-0' }})
+                        Objekt: ({{ pair.objectPoint.normalizedX | number : '1.3-3' }},
+                        {{ pair.objectPoint.normalizedY | number : '1.3-3' }})
                       </div>
                       <div class="pair-data">
-                        Schatten: ({{ pair.shadowPoint.x | number : '1.2-2' }},
-                        {{ pair.shadowPoint.y | number : '1.2-2' }}) →
+                        Schatten: ({{ pair.shadowPoint.normalizedX | number : '1.3-3' }},
+                        {{ pair.shadowPoint.normalizedY | number : '1.3-3' }}) →
                         <strong>{{ pair.shadowPoint.wall }}</strong>
                       </div>
                     </div>
@@ -113,44 +124,17 @@
               Noch keine Objekte hinzugefügt
             </div>
           </div>
-
-          <!-- Info Box -->
-          <div class="info-box">
-            <mat-icon>info</mat-icon>
-            <div class="info-text">
-              <strong>Workflow:</strong>
-              <ol>
-                <li>Objekt hinzufügen</li>
-                <li>3× klicken: Objekt → Schatten</li>
-                <li>Nächstes Objekt</li>
-                <li>Min. 2 Objekte pro Screenshot</li>
-              </ol>
-            </div>
-          </div>
         </div>
 
         <!-- CENTER: Three.js Viewer + Overlay Canvas -->
         <div class="viewer-column">
-          <!-- Controls -->
-          <div class="viewer-controls">
-            <mat-slide-toggle [(ngModel)]="showRoomWireframe" (change)="onToggleWireframe()">
-              <mat-icon>grid_on</mat-icon>
-              Raum-Linien
-            </mat-slide-toggle>
-
-            <mat-slide-toggle [(ngModel)]="showWallLabels" (change)="drawMarkings()">
-              <mat-icon>label</mat-icon>
-              Wand-Namen
-            </mat-slide-toggle>
-          </div>
-
           <!-- Viewer Container mit Overlay -->
           <div class="viewer-container">
-            <!-- Three.js Viewer (read-only) -->
-
+            <!-- Three.js Viewer (read-only, mit FOV!) -->
             <app-three-viewer
               #viewer
               [roomParams]="currentRoomParams"
+              [fovY]="globalFovY"
               [showGrid]="showRoomWireframe"
             ></app-three-viewer>
 
@@ -160,13 +144,11 @@
             <!-- Instructions -->
             <div class="instructions" *ngIf="currentObjectIndex >= 0 && !waitingForShadowPoint">
               <mat-icon>touch_app</mat-icon>
-              <!-- ✅ BEHOBEN: Zeigt NÄCHSTEN Punkt (1/3 statt 0/3) -->
               <span>Klicke auf Objekt-Punkt ({{ currentPairProgress }})</span>
             </div>
 
             <div class="instructions warning" *ngIf="waitingForShadowPoint">
               <mat-icon>touch_app</mat-icon>
-              <!-- ✅ BEHOBEN: Zeigt aktuellen Punkt (beim Schatten-Klick) -->
               <span>Klicke auf Schatten-Ende ({{ currentPairProgress }}) auf Wand!</span>
             </div>
 
@@ -201,29 +183,5 @@
         </div>
       </div>
     </mat-card-content>
-
-    <mat-card-actions align="end">
-      <button mat-button (click)="onBack()">
-        <mat-icon>arrow_back</mat-icon>
-        Zurück
-      </button>
-
-      <div class="spacer"></div>
-
-      <button
-        mat-raised-button
-        color="accent"
-        [disabled]="!hasAnyShadows"
-        (click)="onSaveShadows()"
-      >
-        <mat-icon>save</mat-icon>
-        Speichern
-      </button>
-
-      <button mat-raised-button color="primary" [disabled]="!canProceed" (click)="onFinish()">
-        <mat-icon>done_all</mat-icon>
-        Abschließen
-      </button>
-    </mat-card-actions>
   </mat-card>
 </div>

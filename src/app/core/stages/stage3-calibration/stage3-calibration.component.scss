@@ -15,16 +15,6 @@ mat-card {
   margin: 0 !important;
 }
 
-mat-card-header {
-  padding: 8px 12px !important;
-  min-height: auto !important;
-}
-
-mat-card-subtitle {
-  font-size: 12px !important;
-  margin: 0 !important;
-}
-
 mat-card-content {
   flex: 1;
   overflow: hidden;
@@ -97,36 +87,80 @@ mat-card-actions {
 
 // Control Groups - kompakter
 .control-group {
-  padding: 8px 0;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background: #fafafa;
 }
 
 .control-group:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .control-group h3 {
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
   font-size: 12px;
   color: #333;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control-group h3 mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #666;
+}
+
+.control-group.global-params h3 {
+  color: #1565c0;
+}
+
+.control-group.global-params h3 mat-icon {
+  color: #1976d2;
 }
 
 .control-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .control-header h3 {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .control-header mat-checkbox {
   margin: 0;
+}
+
+// NEU: Badge für global/pro-screenshot
+.badge {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badge.global {
+  background: #1976d2;
+  color: white;
+}
+
+.badge.per-screenshot {
+  background: #ff9800;
+  color: white;
 }
 
 // Slider - sehr kompakt
@@ -138,11 +172,11 @@ mat-card-actions {
 }
 
 .slider-row label {
-  min-width: 18px;
+  min-width: 30px;
   font-size: 11px;
   font-weight: 600;
   color: #666;
-  text-align: center;
+  text-align: right;
 }
 
 .slider-row .slider-icon {
@@ -158,11 +192,12 @@ mat-card-actions {
 }
 
 .slider-row .value {
-  min-width: 45px;
+  min-width: 50px;
   text-align: right;
   font-weight: 600;
   font-size: 11px;
   color: #3f51b5;
+  font-family: 'Roboto Mono', monospace;
 }
 
 .slider-row mat-icon {
@@ -170,6 +205,46 @@ mat-card-actions {
   width: 16px;
   height: 16px;
   color: #666;
+}
+
+// NEU: Info-Hinweise
+.info-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(25, 118, 210, 0.08);
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: #1565c0;
+  line-height: 1.4;
+}
+
+.info-hint mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #1976d2;
+}
+
+.info-hint.muted {
+  background: rgba(0, 0, 0, 0.04);
+  color: #666;
+}
+
+.info-hint.muted mat-icon {
+  color: #999;
+}
+
+.info-hint.warning {
+  background: rgba(255, 152, 0, 0.1);
+  color: #e65100;
+}
+
+.info-hint.warning mat-icon {
+  color: #ff9800;
 }
 
 // Info-Nachrichten - kompakt
@@ -196,59 +271,6 @@ mat-card-actions {
 .info-tip {
   background: #fff3cd !important;
   color: #856404 !important;
-}
-
-// Raum-Dimensionen - horizontal am unteren Rand
-.room-dimensions-bar {
-  display: flex;
-  gap: 20px;
-  padding: 10px 12px;
-  background: #f5f5f5;
-  border-radius: 3px;
-  margin-top: 8px;
-  align-items: center;
-}
-
-.room-dimensions-bar h3 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #333;
-  min-width: 140px;
-}
-
-.room-slider-group {
-  display: flex;
-  gap: 15px;
-  flex: 1;
-}
-
-.room-slider-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
-
-.room-slider-item label {
-  font-size: 11px;
-  font-weight: 600;
-  min-width: 18px;
-  color: #666;
-  text-align: center;
-}
-
-.room-slider-item mat-slider {
-  flex: 1;
-  min-width: 100px;
-}
-
-.room-slider-item .value {
-  min-width: 45px;
-  text-align: right;
-  font-weight: 600;
-  font-size: 11px;
-  color: #3f51b5;
 }
 
 // Progress - sehr kompakt
@@ -429,6 +451,8 @@ mat-checkbox ::ng-deep .mdc-form-field {
   color: #1565c0;
   line-height: 1.5;
 }
+
+// Responsive
 @media (max-width: 1400px) {
   .three-column-layout {
     grid-template-columns: 280px 1fr 280px;
