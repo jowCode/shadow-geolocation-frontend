@@ -30,9 +30,9 @@
         Speichern
       </button>
 
-      <button mat-raised-button color="primary" [disabled]="!canProceed" (click)="onFinish()">
-        <mat-icon>done_all</mat-icon>
-        Abschließen
+      <button mat-raised-button color="primary" (click)="onProceedToSummary()">
+        <mat-icon>summarize</mat-icon>
+        Zur Zusammenfassung
       </button>
     </mat-card-actions>
 
