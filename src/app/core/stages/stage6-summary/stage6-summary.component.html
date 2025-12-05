@@ -1,0 +1,377 @@
+<div class="stage6-container">
+  <!-- Header -->
+  <div class="stage-header">
+    <h1>
+      <mat-icon>summarize</mat-icon>
+      Zusammenfassung & Validierung
+    </h1>
+    <p class="subtitle">{{ projectName }}</p>
+  </div>
+
+  <!-- Warnungen wenn Daten fehlen -->
+  <mat-card *ngIf="!calibration" class="warning-card">
+    <mat-card-content>
+      <mat-icon color="warn">warning</mat-icon>
+      <span>Keine Kalibrierungsdaten gefunden. Bitte zuerst Stage 3 abschließen.</span>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card *ngIf="screenshots.length === 0" class="warning-card">
+    <mat-card-content>
+      <mat-icon color="warn">warning</mat-icon>
+      <span>Keine Schatten-Daten gefunden. Bitte zuerst Stage 5 abschließen.</span>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ================================================================== -->
+  <!-- KALIBRIERUNG CARD -->
+  <!-- ================================================================== -->
+  <mat-card class="calibration-card" *ngIf="calibration">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>straighten</mat-icon>
+      <mat-card-title>Kalibrierung</mat-card-title>
+      <mat-card-subtitle>Globale Parameter</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="calibration-grid">
+        <!-- Raum -->
+        <div class="calib-item">
+          <mat-icon>home</mat-icon>
+          <div class="calib-details">
+            <span class="label">Raum</span>
+            <span class="value">
+              {{ calibration.room.width | number : '1.1-1' }} ×
+              {{ calibration.room.depth | number : '1.1-1' }} ×
+              {{ calibration.room.height | number : '1.1-1' }} m
+            </span>
+          </div>
+        </div>
+
+        <!-- Kamera Position -->
+        <div class="calib-item">
+          <mat-icon>videocam</mat-icon>
+          <div class="calib-details">
+            <span class="label">Kamera</span>
+            <span class="value">
+              ({{ calibration.camera.position.x | number : '1.2-2' }},
+              {{ calibration.camera.position.y | number : '1.2-2' }},
+              {{ calibration.camera.position.z | number : '1.2-2' }}) m
+            </span>
+          </div>
+        </div>
+
+        <!-- FOV -->
+        <div class="calib-item">
+          <mat-icon>camera</mat-icon>
+          <div class="calib-details">
+            <span class="label">FOV</span>
+            <span class="value">{{ calibration.camera.fovY | number : '1.0-0' }}°</span>
+          </div>
+        </div>
+
+        <!-- Screenshots -->
+        <div class="calib-item">
+          <mat-icon>collections</mat-icon>
+          <div class="calib-details">
+            <span class="label">Screenshots</span>
+            <span class="value"
+              >{{ calibration.completedCount }}/{{ calibration.screenshotCount }} kalibriert</span
+            >
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ================================================================== -->
+  <!-- STATISTIK CARD -->
+  <!-- ================================================================== -->
+  <mat-card class="stats-card" *ngIf="screenshots.length > 0">
+    <mat-card-content>
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-value">{{ screenshots.length }}</span>
+          <span class="stat-label">Screenshots</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ totalObjects }}</span>
+          <span class="stat-label">Objekte</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ totalPairs }}</span>
+          <span class="stat-label">Schatten-Paare</span>
+        </div>
+        <div class="stat-item">
+          <mat-icon [class]="'status-' + globalValidationStatus">
+            {{ getStatusIcon(globalValidationStatus) }}
+          </mat-icon>
+          <span class="stat-label">Validierung</span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- ================================================================== -->
+  <!-- SCREENSHOTS MIT OBJEKTEN -->
+  <!-- ================================================================== -->
+  <div class="screenshots-section" *ngIf="screenshots.length > 0">
+    <h2>
+      <mat-icon>photo_library</mat-icon>
+      Schatten-Daten pro Screenshot
+    </h2>
+
+    <mat-accordion multi>
+      <mat-expansion-panel
+        *ngFor="let screenshot of screenshots; let i = index"
+        [expanded]="i === 0"
+      >
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon>image</mat-icon>
+            Screenshot {{ i + 1 }}
+          </mat-panel-title>
+          <mat-panel-description>
+            <span class="timestamp-badge">{{ screenshot.timestamp }}</span>
+            <span class="object-count">{{ screenshot.objects.length }} Objekte</span>
+            <mat-icon
+              *ngIf="screenshot.validation"
+              [class]="'validation-status status-' + screenshot.validation.status"
+            >
+              {{ getStatusIcon(screenshot.validation.status) }}
+            </mat-icon>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <!-- Screenshot Details -->
+        <div class="screenshot-details">
+          <!-- Kamera-Rotation für diesen Screenshot -->
+          <div class="rotation-info">
+            <mat-icon>360</mat-icon>
+            <span
+              >Kamera-Rotation: X={{ screenshot.calibration.cameraRotation.x | number : '1.1-1' }}°,
+              Y={{ screenshot.calibration.cameraRotation.y | number : '1.1-1' }}°, Z={{
+                screenshot.calibration.cameraRotation.z | number : '1.1-1'
+              }}°
+            </span>
+          </div>
+
+          <!-- Objekt-Cards -->
+          <div class="objects-grid">
+            <mat-card
+              *ngFor="let object of screenshot.objects"
+              class="object-card"
+              [class.validated]="getObjectValidation(screenshot.id, object.id)?.status === 'valid'"
+              [class.warning]="getObjectValidation(screenshot.id, object.id)?.status === 'warning'"
+              [class.error]="getObjectValidation(screenshot.id, object.id)?.status === 'error'"
+            >
+              <mat-card-header>
+                <mat-icon mat-card-avatar>category</mat-icon>
+                <mat-card-title>{{ object.name }}</mat-card-title>
+                <mat-card-subtitle>{{ object.pairs.length }} Punkte</mat-card-subtitle>
+
+                <!-- Validierung Status -->
+                <div
+                  class="validation-badge"
+                  *ngIf="getObjectValidation(screenshot.id, object.id) as validation"
+                >
+                  <mat-icon [class]="'status-' + validation.status">
+                    {{ getStatusIcon(validation.status) }}
+                  </mat-icon>
+                  <span *ngIf="validation.consistencyScore !== undefined">
+                    {{ validation.consistencyScore | number : '1.0-0' }}%
+                  </span>
+                </div>
+              </mat-card-header>
+
+              <mat-card-content>
+                <!-- Punkt-Liste -->
+                <div class="point-list">
+                  <div
+                    *ngFor="let pair of object.pairs; let pIdx = index"
+                    class="point-item"
+                    [class.validated]="getObjectValidation(screenshot.id, object.id)?.points?.[pIdx]?.status === 'valid'"
+                    [class.warning]="getObjectValidation(screenshot.id, object.id)?.points?.[pIdx]?.status === 'warning'"
+                    [class.error]="getObjectValidation(screenshot.id, object.id)?.points?.[pIdx]?.status === 'error'"
+                  >
+                    <span class="point-index">{{ pIdx + 1 }}</span>
+
+                    <div class="point-coords">
+                      <span class="coord-label">Objekt:</span>
+                      <span class="coord-value">
+                        ({{ pair.objectPoint.normalizedX | number : '1.3-3' }},
+                        {{ pair.objectPoint.normalizedY | number : '1.3-3' }})
+                      </span>
+                    </div>
+
+                    <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+
+                    <div class="point-coords shadow">
+                      <span class="coord-label">Schatten:</span>
+                      <span class="coord-value">
+                        ({{ pair.shadowPoint.normalizedX | number : '1.3-3' }},
+                        {{ pair.shadowPoint.normalizedY | number : '1.3-3' }})
+                      </span>
+                      <mat-chip class="wall-chip">{{
+                        getWallDisplayName(pair.shadowPoint.wall)
+                      }}</mat-chip>
+                    </div>
+
+                    <!-- Validierungs-Feedback pro Punkt -->
+                    <div
+                      class="point-validation"
+                      *ngIf="getObjectValidation(screenshot.id, object.id)?.points?.[pIdx] as pointVal"
+                    >
+                      <mat-icon [class]="'status-' + pointVal.status">
+                        {{ getStatusIcon(pointVal.status) }}
+                      </mat-icon>
+                      <span *ngIf="pointVal.errorPercent !== undefined" class="error-percent">
+                        {{ pointVal.errorPercent | number : '1.1-1' }}% Fehler
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Objekt-Validierungs-Message -->
+                <div
+                  class="validation-message"
+                  *ngIf="getObjectValidation(screenshot.id, object.id)?.message as msg"
+                >
+                  <mat-icon>info</mat-icon>
+                  <span>{{ msg }}</span>
+                </div>
+              </mat-card-content>
+
+              <mat-card-actions>
+                <button
+                  mat-button
+                  color="primary"
+                  (click)="validateObject(screenshot.id, object.id)"
+                  [disabled]="isValidating"
+                >
+                  <mat-icon>check_circle</mat-icon>
+                  Prüfen
+                </button>
+                <button mat-button (click)="onEditObject(screenshot.id, object.id)">
+                  <mat-icon>edit</mat-icon>
+                  Bearbeiten
+                </button>
+              </mat-card-actions>
+            </mat-card>
+          </div>
+
+          <!-- Inter-Objekt Validierung -->
+          <div class="inter-object-section" *ngIf="screenshot.objects.length >= 2">
+            <mat-divider></mat-divider>
+            <div class="inter-object-header">
+              <h4>
+                <mat-icon>compare_arrows</mat-icon>
+                Inter-Objekt-Konsistenz
+              </h4>
+              <div
+                class="inter-object-status"
+                *ngIf="screenshot.validation?.interObjectScore !== undefined"
+              >
+                <span class="score"
+                  >{{ screenshot.validation?.interObjectScore | number : '1.0-0' }}%</span
+                >
+                <mat-icon [class]="'status-' + screenshot.validation?.status">
+                  {{ getStatusIcon(screenshot.validation?.status ?? 'pending') }}
+                </mat-icon>
+              </div>
+            </div>
+            <p class="inter-object-desc">
+              Vergleicht ob alle Objekte in diesem Screenshot auf dieselbe Lichtquelle zeigen.
+            </p>
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="validateInterObject(screenshot.id)"
+              [disabled]="isValidating || screenshot.objects.length < 2"
+            >
+              <mat-icon>sync</mat-icon>
+              Objekte vergleichen
+            </button>
+            <p class="inter-object-message" *ngIf="screenshot.validation?.message">
+              {{ screenshot.validation?.message }}
+            </p>
+          </div>
+
+          <div class="inter-object-section disabled" *ngIf="screenshot.objects.length < 2">
+            <mat-icon>info</mat-icon>
+            <span>Mindestens 2 Objekte erforderlich für Inter-Objekt-Validierung</span>
+          </div>
+        </div>
+
+        <!-- Screenshot Actions -->
+        <mat-action-row>
+          <button
+            mat-button
+            color="primary"
+            (click)="validateScreenshot(screenshot.id)"
+            [disabled]="isValidating"
+          >
+            <mat-icon>playlist_add_check</mat-icon>
+            Alle prüfen
+          </button>
+        </mat-action-row>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- GLOBAL VALIDATION -->
+  <!-- ================================================================== -->
+  <mat-card class="global-validation-card" *ngIf="screenshots.length > 0">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>verified</mat-icon>
+      <mat-card-title>Gesamtvalidierung</mat-card-title>
+      <mat-card-subtitle>Prüft alle Screenshots und Objekte</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <mat-progress-bar *ngIf="isValidating" mode="indeterminate"> </mat-progress-bar>
+
+      <div class="global-status" *ngIf="!isValidating">
+        <mat-icon [class]="'status-' + globalValidationStatus" class="big-icon">
+          {{ getStatusIcon(globalValidationStatus) }}
+        </mat-icon>
+        <span class="status-text">
+          <ng-container [ngSwitch]="globalValidationStatus">
+            <ng-container *ngSwitchCase="'valid'">Alle Daten konsistent</ng-container>
+            <ng-container *ngSwitchCase="'warning'">Einige Inkonsistenzen gefunden</ng-container>
+            <ng-container *ngSwitchCase="'error'">Fehler in den Daten</ng-container>
+            <ng-container *ngSwitchDefault>Noch nicht validiert</ng-container>
+          </ng-container>
+        </span>
+      </div>
+    </mat-card-content>
+    <mat-card-actions>
+      <button mat-raised-button color="primary" (click)="validateAll()" [disabled]="isValidating">
+        <mat-icon>fact_check</mat-icon>
+        Alle validieren
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- ================================================================== -->
+  <!-- NAVIGATION -->
+  <!-- ================================================================== -->
+  <div class="navigation-bar">
+    <button mat-button (click)="onBack()">
+      <mat-icon>arrow_back</mat-icon>
+      Zurück zu Schatten
+    </button>
+
+    <div class="spacer"></div>
+
+    <button
+      mat-raised-button
+      color="accent"
+      (click)="onProceedToCalculation()"
+      [disabled]="!canProceed"
+      matTooltip="Geolocation-Berechnung noch nicht implementiert"
+    >
+      <mat-icon>calculate</mat-icon>
+      Zur Berechnung
+    </button>
+  </div>
+</div>

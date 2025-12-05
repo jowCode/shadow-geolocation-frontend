@@ -867,6 +867,10 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     this.router.navigate(['/stage3-calibration']);
   }
 
+  onProceedToSummary() {
+    this.router.navigate(['/stage6-summary']);
+  }
+
   onToggleWireframe() {
     this.viewer?.toggleGrid(this.showRoomWireframe);
     this.cdr.detectChanges();
