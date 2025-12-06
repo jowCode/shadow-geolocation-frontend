@@ -2,14 +2,17 @@
   <mat-card>
     <mat-card-header>
       <mat-card-title>Neues Projekt erstellen</mat-card-title>
+      <mat-card-subtitle>Screenshots hochladen und Zeitstempel zuweisen</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
+      <!-- PROJEKT-NAME -->
       <mat-form-field class="full-width">
         <mat-label>Projekt-Name</mat-label>
         <input matInput [(ngModel)]="projectName" placeholder="z.B. Test Video 001" />
       </mat-form-field>
 
+      <!-- FILE UPLOAD -->
       <div class="upload-section">
         <h3>Screenshots hochladen</h3>
         <div
@@ -31,28 +34,90 @@
             style="display: none"
           />
         </div>
+      </div>
 
-        @if (files.length > 0) {
-        <div class="file-list">
-          <h4>Hochgeladene Screenshots: ({{ files.length }})</h4>
-          <div class="file-item" *ngFor="let file of files; let i = index">
-            <mat-icon>image</mat-icon>
-            <span>{{ file.name }}</span>
-            <span class="spacer"></span>
-            <button mat-icon-button (click)="removeFile(i)">
-              <mat-icon>close</mat-icon>
-            </button>
-          </div>
+      <!-- SCREENSHOT GRID -->
+      @if (screenshotItems.length > 0) {
+      <div class="screenshots-section">
+        <div class="section-header">
+          <h3>Hochgeladene Screenshots ({{ screenshotItems.length }})</h3>
+          <span class="hint">Klicke auf ⭐ um den Referenzpunkt (t0) zu setzen</span>
         </div>
-        }
-      </div>
 
-      <div class="camera-type-section">
-        <h3>Kamera-Typ</h3>
-        <mat-radio-group [(ngModel)]="cameraType">
-          <mat-radio-button value="static"> Statisch (nur Schwenk/Neigung) </mat-radio-button>
-        </mat-radio-group>
+        <div class="screenshot-grid">
+          @for (item of screenshotItems; track item.id; let i = $index) {
+          <mat-card class="screenshot-card" [class.reference]="item.isReferencePoint">
+            <!-- Preview -->
+            <div class="screenshot-preview">
+              <img [src]="item.previewUrl" [alt]="item.filename" />
+              <button
+                mat-icon-button
+                class="delete-button"
+                color="warn"
+                (click)="removeScreenshot(item.id); $event.stopPropagation()"
+                matTooltip="Entfernen"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+
+            <!-- Info -->
+            <mat-card-content class="screenshot-info">
+              <div class="filename">{{ item.filename }}</div>
+
+              <!-- Reference Toggle -->
+              <div class="reference-row">
+                <button
+                  mat-icon-button
+                  [color]="item.isReferencePoint ? 'accent' : ''"
+                  (click)="setAsReference(item.id)"
+                  matTooltip="Als Referenzpunkt (t0) setzen"
+                >
+                  <mat-icon>{{ item.isReferencePoint ? 'star' : 'star_border' }}</mat-icon>
+                </button>
+
+                @if (item.isReferencePoint) {
+                <mat-chip class="t0-chip">t0 (Referenz)</mat-chip>
+                } @else {
+                <!-- Offset Input -->
+                <mat-form-field class="offset-field" appearance="outline">
+                  <mat-label>Offset (Sek.)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    [(ngModel)]="item.offsetSeconds"
+                    (ngModelChange)="updateTimestamp(item)"
+                    [disabled]="!hasReferencePoint"
+                  />
+                </mat-form-field>
+                }
+              </div>
+
+              <!-- Timestamp Display -->
+              <div class="timestamp-display">
+                <mat-chip [class.reference-chip]="item.isReferencePoint">
+                  {{ item.timestamp }}
+                </mat-chip>
+              </div>
+            </mat-card-content>
+          </mat-card>
+          }
+        </div>
       </div>
+      }
+
+      <!-- VALIDATION MESSAGES -->
+      @if (screenshotItems.length > 0 && !hasReferencePoint) {
+      <div class="warning-box">
+        <mat-icon>warning</mat-icon>
+        <span>Bitte wähle einen Screenshot als Referenzpunkt (t0) aus</span>
+      </div>
+      } @if (screenshotItems.length > 0 && screenshotItems.length < 3) {
+      <div class="warning-box">
+        <mat-icon>warning</mat-icon>
+        <span>Mindestens 3 Screenshots werden empfohlen</span>
+      </div>
+      }
     </mat-card-content>
 
     <mat-card-actions align="end">
@@ -60,18 +125,25 @@
         mat-raised-button
         color="primary"
         [disabled]="!canProceed || isLoading"
-        (click)="onNext()"
+        (click)="onCreateAndProceed()"
       >
         @if (isLoading) {
         <mat-spinner diameter="20"></mat-spinner>
-        } @if (!isLoading) {<span>Weiter zu Screenshots</span>}
+        <span>Wird erstellt...</span>
+        } @else {
+        <span>Projekt erstellen & Weiter</span>
+        }
       </button>
     </mat-card-actions>
   </mat-card>
 
+  <!-- ERROR DISPLAY -->
   @if (error) {
   <mat-card class="error-card">
-    <mat-card-content> <mat-icon color="warn">error</mat-icon> {{ error }} </mat-card-content>
+    <mat-card-content>
+      <mat-icon color="warn">error</mat-icon>
+      <span>{{ error }}</span>
+    </mat-card-content>
   </mat-card>
   }
 </div>
