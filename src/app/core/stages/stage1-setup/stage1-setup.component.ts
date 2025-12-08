@@ -7,7 +7,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIcon, MatIconModule } from '@angular/material/icon';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -20,9 +20,6 @@ import {
   Dimensions
 } from '../../models/session.types';
 
-/**
- * Screenshot-Item für die lokale Anzeige (vor dem Upload)
- */
 interface ScreenshotItem {
   id: string;
   file: File;
@@ -34,14 +31,6 @@ interface ScreenshotItem {
   dimensions?: Dimensions;
 }
 
-/**
- * Stage 1: Setup (merged mit Stage 2)
- * 
- * - Projektname eingeben
- * - Screenshots hochladen (Drag & Drop)
- * - Timestamps zuweisen (t0-Referenz + Offsets)
- * - Session erstellen & Weiter zu Stage 3
- */
 @Component({
   selector: 'app-stage1-setup',
   standalone: true,
@@ -77,17 +66,9 @@ export class Stage1SetupComponent implements OnInit {
   ) { }
 
   ngOnInit() {
-    // Prüfe ob bereits eine Session existiert
     const existingSessionId = this.sessionService.getCurrentSessionId();
-    if (existingSessionId) {
-      // Optional: Frage ob User zur existierenden Session zurückkehren möchte
-      console.log('📂 Existierende Session gefunden:', existingSessionId);
-    }
+    if (existingSessionId) console.log('📂 Existierende Session gefunden:', existingSessionId);
   }
-
-  // ==========================================================================
-  // GETTERS
-  // ==========================================================================
 
   get hasReferencePoint(): boolean {
     return this.screenshotItems.some(item => item.isReferencePoint);
@@ -130,10 +111,7 @@ export class Stage1SetupComponent implements OnInit {
 
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (input.files) {
-      this.addFiles(Array.from(input.files));
-    }
-    // Reset input für erneute Auswahl derselben Dateien
+    if (input.files) this.addFiles(Array.from(input.files));
     input.value = '';
   }
 
@@ -150,13 +128,11 @@ export class Stage1SetupComponent implements OnInit {
     }
 
     for (const file of imageFiles) {
-      // Prüfe ob Datei bereits existiert
       if (this.screenshotItems.some(item => item.filename === file.name)) {
         console.log(`⚠️ Datei ${file.name} existiert bereits, überspringe`);
         continue;
       }
 
-      // Bild-Dimensionen ermitteln
       const dimensions = await this.getImageDimensions(file);
 
       const item: ScreenshotItem = {
@@ -172,13 +148,6 @@ export class Stage1SetupComponent implements OnInit {
 
       this.screenshotItems.push(item);
     }
-
-    // Wenn noch kein Referenzpunkt, setze ersten als t0
-    if (!this.hasReferencePoint && this.screenshotItems.length > 0) {
-      this.setAsReference(this.screenshotItems[0].id);
-    }
-
-    console.log(`✅ ${imageFiles.length} Screenshots hinzugefügt`);
   }
 
   private getImageDimensions(file: File): Promise<Dimensions> {
@@ -198,17 +167,8 @@ export class Stage1SetupComponent implements OnInit {
 
   removeScreenshot(id: string) {
     const item = this.screenshotItems.find(i => i.id === id);
-    if (item) {
-      // Preview-URL freigeben
-      URL.revokeObjectURL(item.previewUrl as string);
-    }
-
+    if (item) URL.revokeObjectURL(item.previewUrl as string);
     this.screenshotItems = this.screenshotItems.filter(i => i.id !== id);
-
-    // Wenn Referenzpunkt entfernt wurde, setze ersten als neuen t0
-    if (!this.hasReferencePoint && this.screenshotItems.length > 0) {
-      this.setAsReference(this.screenshotItems[0].id);
-    }
   }
 
   // ==========================================================================
@@ -248,8 +208,6 @@ export class Stage1SetupComponent implements OnInit {
     this.error = '';
 
     try {
-      // 1. Session erstellen
-      console.log('📤 Erstelle Session...');
 
       const screenshots: ScreenshotData[] = this.screenshotItems.map(item => ({
         id: item.id,
@@ -267,21 +225,12 @@ export class Stage1SetupComponent implements OnInit {
 
       const response = await this.sessionService.createSession(createRequest).toPromise();
       const sessionId = response!.sessionId;
-
-      console.log('✅ Session erstellt:', sessionId);
-
-      // 2. Session-ID speichern
       this.sessionService.setCurrentSessionId(sessionId);
-
-      // 3. Screenshots hochladen
-      console.log('📤 Lade Screenshots hoch...');
-
       let uploadedCount = 0;
       for (const item of this.screenshotItems) {
         try {
           await this.sessionService.uploadScreenshot(sessionId, item.id, item.file).toPromise();
           uploadedCount++;
-          console.log(`✅ Screenshot ${uploadedCount}/${this.screenshotItems.length} hochgeladen`);
         } catch (err) {
           console.error(`❌ Fehler beim Hochladen von ${item.filename}:`, err);
           throw new Error(`Fehler beim Hochladen von ${item.filename}`);
@@ -294,8 +243,6 @@ export class Stage1SetupComponent implements OnInit {
         { duration: 3000 }
       );
 
-      // 4. Navigation zu Stage 3
-      console.log('➡️ Navigiere zu Stage 3...');
       this.router.navigate(['/stage3-calibration']);
 
     } catch (err: any) {
