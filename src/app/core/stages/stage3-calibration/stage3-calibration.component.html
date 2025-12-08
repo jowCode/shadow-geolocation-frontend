@@ -165,7 +165,7 @@
         <div class="viewer-column">
           <app-three-viewer
             #viewer
-            [backgroundImage]="currentStep?.screenshot?.file ?? undefined"
+            [backgroundImage]="currentStep?.file ?? undefined"
             [roomParams]="currentRoomParams"
             [roomRotation]="{
               x: currentCameraRotation.x,
