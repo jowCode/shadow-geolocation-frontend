@@ -1,217 +1,187 @@
-<div class="stage5-container">
-  <!-- Header -->
-  <div class="stage-header">
-    <h1>
-      <mat-icon>brightness_5</mat-icon>
-      Schatten markieren
-    </h1>
-    <p class="subtitle">
-      @if (currentScreenshot) {
-        Screenshot {{ currentIndex + 1 }}/{{ screenshots.length }}
-        <mat-chip class="timestamp-chip">{{ currentScreenshot.timestamp }}</mat-chip>
-      }
-    </p>
-  </div>
+<div class="stage-container">
+  <mat-card>
+    <mat-card-actions align="end">
+      <button mat-button (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Zurück
+      </button>
 
-  <div class="main-content">
-    <!-- LEFT PANEL: Controls -->
-    <div class="controls-panel">
-      <!-- Screenshot Navigation -->
-      <mat-card class="nav-card">
-        <mat-card-header>
-          <mat-card-title>Screenshots</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="screenshot-list">
-            @for (screenshot of screenshots; track screenshot.id; let i = $index) {
-              <div
-                class="screenshot-item"
-                [class.active]="i === currentIndex"
-                (click)="goToScreenshot(i)"
-              >
-                <span class="index">{{ i + 1 }}</span>
-                <span class="timestamp">{{ screenshot.timestamp }}</span>
-                <span class="object-count">{{ getCompleteObjectsCount(screenshot) }} Obj.</span>
-              </div>
-            }
-          </div>
-        </mat-card-content>
-      </mat-card>
+      <button
+        *ngFor="let s of screenshots; let i = index"
+        mat-stroked-button
+        [color]="i === currentIndex ? 'primary' : ''"
+        [class.complete]="getCompleteObjectsCount(s) >= 2"
+        (click)="goToScreenshot(i)"
+      >
+        <mat-icon *ngIf="getCompleteObjectsCount(s) >= 2">check_circle</mat-icon>
+        <mat-icon *ngIf="getCompleteObjectsCount(s) < 2">radio_button_unchecked</mat-icon>
+        {{ i + 1 }}
+      </button>
 
-      <!-- Objects Panel -->
-      <mat-expansion-panel expanded>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <mat-icon>category</mat-icon>
-            Objekte ({{ currentScreenshot?.objects?.length || 0 }})
-          </mat-panel-title>
-        </mat-expansion-panel-header>
+      <div class="spacer"></div>
 
-        <button mat-stroked-button color="primary" (click)="onAddObject()" class="add-object-btn">
-          <mat-icon>add</mat-icon>
-          Neues Objekt
-        </button>
+      <button
+        mat-raised-button
+        color="accent"
+        [disabled]="!hasAnyShadows"
+        (click)="onSaveShadows()"
+      >
+        <mat-icon>save</mat-icon>
+        Speichern
+      </button>
 
-        @if (currentScreenshot && currentScreenshot.objects.length > 0) {
-          <mat-list class="object-list">
-            @for (obj of currentScreenshot.objects; track obj.id; let objIdx = $index) {
-              <mat-list-item
-                [class.active]="objIdx === currentObjectIndex"
-                (click)="onSelectObject(objIdx)"
-              >
-                <mat-icon matListItemIcon>
-                  {{ obj.pairs.length === 3 ? 'check_circle' : 'radio_button_unchecked' }}
-                </mat-icon>
-                <div matListItemTitle>{{ obj.name }}</div>
-                <div matListItemLine>{{ obj.pairs.length }}/3 Punkte</div>
-                <button
-                  mat-icon-button
-                  matListItemMeta
-                  color="warn"
-                  (click)="onDeleteObject(objIdx); $event.stopPropagation()"
-                  matTooltip="Objekt löschen"
-                >
-                  <mat-icon>delete</mat-icon>
-                </button>
-              </mat-list-item>
-            }
-          </mat-list>
-        } @else {
-          <p class="empty-hint">Noch keine Objekte. Klicke "Neues Objekt" um zu beginnen.</p>
-        }
-      </mat-expansion-panel>
+      <button mat-raised-button color="primary" (click)="onProceedToSummary()">
+        <mat-icon>summarize</mat-icon>
+        Zur Zusammenfassung
+      </button>
+    </mat-card-actions>
 
-      <!-- Current Object Details -->
-      @if (currentObject) {
-        <mat-expansion-panel expanded>
-          <mat-expansion-panel-header>
-            <mat-panel-title>
-              <mat-icon>edit</mat-icon>
-              {{ currentObject.name }}
-            </mat-panel-title>
-          </mat-expansion-panel-header>
-
-          <div class="marking-instructions">
-            @if (waitingForShadowPoint) {
-              <div class="instruction shadow">
-                <mat-icon>brightness_5</mat-icon>
-                <span>Klicke auf den <strong>Schatten-Punkt</strong></span>
-              </div>
-            } @else if (currentObject.pairs.length < 3) {
-              <div class="instruction object">
-                <mat-icon>place</mat-icon>
-                <span>Klicke auf den <strong>Objekt-Punkt</strong> ({{ currentPairProgress }})</span>
-              </div>
-            } @else {
-              <div class="instruction complete">
-                <mat-icon>check_circle</mat-icon>
-                <span>Objekt komplett!</span>
-              </div>
-            }
+    <mat-card-content>
+      <!-- Main Layout: Sidebar + Viewer -->
+      <div class="main-layout">
+        <!-- LEFT SIDEBAR: Objekt-Liste -->
+        <div class="sidebar">
+          <div class="sidebar-header">
+            <h3>Objekte</h3>
+            <button
+              mat-mini-fab
+              color="primary"
+              (click)="onAddObject()"
+              matTooltip="Objekt hinzufügen"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
           </div>
 
-          <!-- Point Pairs List -->
-          @if (currentObject.pairs.length > 0) {
-            <div class="pairs-list">
-              @for (pair of currentObject.pairs; track $index; let pIdx = $index) {
-                <div class="pair-item">
-                  <span class="pair-index">{{ pIdx + 1 }}</span>
-                  <span class="pair-info">
-                    Objekt → {{ pair.shadowPoint.wall }}
-                  </span>
+          <div class="objects-list" *ngIf="currentScreenshot">
+            <mat-expansion-panel
+              *ngFor="let obj of currentScreenshot.objects; let i = index"
+              [expanded]="i === currentObjectIndex"
+              (opened)="onSelectObject(i)"
+              [class.complete]="obj.pairs.length === 3"
+            >
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon *ngIf="obj.pairs.length === 3" class="status-icon complete"
+                    >check_circle</mat-icon
+                  >
+                  <mat-icon *ngIf="(obj.pairs.length || 0) < 3" class="status-icon incomplete"
+                    >radio_button_unchecked</mat-icon
+                  >
+                  {{ obj.name }}
+                </mat-panel-title>
+                <mat-panel-description>
+                  {{ obj.pairs.length || 0 }} / 3 Punkte
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+
+              <!-- Punkt-Paare -->
+              <div class="pairs-list">
+                <div *ngFor="let pair of obj.pairs; let pairIdx = index" class="pair-item">
+                  <div class="pair-info">
+                    <mat-icon class="pair-icon">wb_sunny</mat-icon>
+                    <div class="pair-details">
+                      <div class="pair-title">Punkt {{ pairIdx + 1 }}</div>
+                      <div class="pair-data">
+                        Objekt: ({{ pair.objectPoint.normalizedX | number : '1.3-3' }},
+                        {{ pair.objectPoint.normalizedY | number : '1.3-3' }})
+                      </div>
+                      <div class="pair-data">
+                        Schatten: ({{ pair.shadowPoint.normalizedX | number : '1.3-3' }},
+                        {{ pair.shadowPoint.normalizedY | number : '1.3-3' }}) →
+                        <strong>{{ pair.shadowPoint.wall }}</strong>
+                      </div>
+                    </div>
+                  </div>
                   <button
                     mat-icon-button
                     color="warn"
-                    (click)="onDeletePair(currentObjectIndex, pIdx)"
-                    matTooltip="Paar löschen"
+                    (click)="onDeletePair(i, pairIdx)"
+                    matTooltip="Punkt löschen"
                   >
-                    <mat-icon>close</mat-icon>
+                    <mat-icon>delete</mat-icon>
                   </button>
                 </div>
-              }
+
+                <div *ngIf="!obj.pairs || obj.pairs.length === 0" class="empty-hint">
+                  Noch keine Punkte markiert
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <mat-action-row>
+                <button mat-button color="warn" (click)="onDeleteObject(i)">
+                  <mat-icon>delete</mat-icon>
+                  Objekt löschen
+                </button>
+              </mat-action-row>
+            </mat-expansion-panel>
+
+            <div
+              *ngIf="!currentScreenshot.objects || currentScreenshot.objects.length === 0"
+              class="empty-hint"
+            >
+              Noch keine Objekte hinzugefügt
             </div>
-          }
-        </mat-expansion-panel>
-      }
-
-      <!-- Display Options -->
-      <mat-expansion-panel>
-        <mat-expansion-panel-header>
-          <mat-panel-title>
-            <mat-icon>visibility</mat-icon>
-            Anzeige-Optionen
-          </mat-panel-title>
-        </mat-expansion-panel-header>
-
-        <mat-slide-toggle [(ngModel)]="showRoomWireframe" (change)="onToggleWireframe()">
-          Raum-Wireframe anzeigen
-        </mat-slide-toggle>
-
-        <mat-slide-toggle [(ngModel)]="showWallLabels" (change)="drawMarkings()">
-          Wand-Labels anzeigen
-        </mat-slide-toggle>
-      </mat-expansion-panel>
-
-      <!-- Actions -->
-      <div class="action-buttons">
-        <button mat-button (click)="onBack()">
-          <mat-icon>arrow_back</mat-icon>
-          Zurück zur Kalibrierung
-        </button>
-
-        <button
-          mat-raised-button
-          color="accent"
-          (click)="onSaveShadows()"
-          [disabled]="!hasAnyShadows"
-        >
-          <mat-icon>save</mat-icon>
-          Speichern
-        </button>
-
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="onProceedToSummary()"
-          [disabled]="!hasAnyShadows"
-        >
-          <mat-icon>arrow_forward</mat-icon>
-          Zur Zusammenfassung
-        </button>
-      </div>
-    </div>
-
-    <!-- RIGHT PANEL: Viewer with Overlay -->
-    <div class="viewer-panel">
-      <div class="viewer-wrapper">
-        <app-three-viewer
-          #viewer
-          [showGrid]="showRoomWireframe"
-        ></app-three-viewer>
-
-        <canvas
-          #overlayCanvas
-          class="overlay-canvas"
-          (click)="onOverlayClick($event)"
-          (window:resize)="updateOverlayCanvas()"
-        ></canvas>
-      </div>
-
-      <!-- Legend -->
-      <div class="legend">
-        <div class="legend-item">
-          <span class="dot object"></span>
-          Objekt-Punkt
+          </div>
         </div>
-        <div class="legend-item">
-          <span class="dot shadow"></span>
-          Schatten-Punkt
-        </div>
-        <div class="legend-item">
-          <span class="line"></span>
-          Verbindung
+
+        <!-- CENTER: Three.js Viewer + Overlay Canvas -->
+        <div class="viewer-column">
+          <!-- Viewer Container mit Overlay -->
+          <div class="viewer-container">
+            <!-- Three.js Viewer (read-only, mit FOV!) -->
+            <app-three-viewer
+              #viewer
+              [roomParams]="currentRoomParams"
+              [fovY]="globalFovY"
+              [showGrid]="showRoomWireframe"
+            ></app-three-viewer>
+
+            <!-- Overlay Canvas für Markierungen -->
+            <canvas #overlayCanvas class="overlay-canvas" (click)="onOverlayClick($event)"></canvas>
+
+            <!-- Instructions -->
+            <div class="instructions" *ngIf="currentObjectIndex >= 0 && !waitingForShadowPoint">
+              <mat-icon>touch_app</mat-icon>
+              <span>Klicke auf Objekt-Punkt ({{ currentPairProgress }})</span>
+            </div>
+
+            <div class="instructions warning" *ngIf="waitingForShadowPoint">
+              <mat-icon>touch_app</mat-icon>
+              <span>Klicke auf Schatten-Ende ({{ currentPairProgress }}) auf Wand!</span>
+            </div>
+
+            <div class="instructions error" *ngIf="currentObjectIndex < 0">
+              <mat-icon>info</mat-icon>
+              <span>Bitte erst Objekt hinzufügen!</span>
+            </div>
+          </div>
+
+          <!-- Wall Legend -->
+          <div class="wall-legend">
+            <div class="legend-title">Wände:</div>
+            <div class="legend-items">
+              <div class="legend-item">
+                <div class="color-box back"></div>
+                <span>Rückwand (back)</span>
+              </div>
+              <div class="legend-item">
+                <div class="color-box left"></div>
+                <span>Links (left)</span>
+              </div>
+              <div class="legend-item">
+                <div class="color-box right"></div>
+                <span>Rechts (right)</span>
+              </div>
+              <div class="legend-item">
+                <div class="color-box floor"></div>
+                <span>Boden (floor)</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
+    </mat-card-content>
+  </mat-card>
 </div>
