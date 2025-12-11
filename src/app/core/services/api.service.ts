@@ -45,6 +45,50 @@ export interface ShadowPair {
 // VALIDIERUNGS-ERGEBNIS INTERFACES
 // ----------------------------------------------------------------------------
 
+export interface ValidationResultData {
+  objectId?: string;
+  screenshotId: string;
+  consistencyScore?: number;
+  interObjectScore?: number;
+  lightDirection?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  meanLightDirection?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  meanLightAzimuthDeg?: number;
+  meanLightElevationDeg?: number;
+  averageErrorDeg?: number;
+  maxErrorDeg?: number;
+  averageDeviationDeg?: number;
+  maxDeviationDeg?: number;
+  details?: any;
+  objectResults?: any[];
+}
+
+export interface ValidationApiResponse {
+  success: boolean;
+  status: 'pending' | 'valid' | 'warning' | 'error';
+  message: string;
+  data?: ValidationResultData;
+}
+
+export interface GlobalValidationData {
+  globalScore: number;
+  summary: {
+    total_screenshots: number;
+    valid_screenshots: number;
+    warning_screenshots: number;
+    error_screenshots: number;
+  };
+  screenshotResults: any[];
+  crossScreenshotConsistency?: any;
+}
+
 export type ValidationStatus = 'pending' | 'valid' | 'warning' | 'error';
 
 /**
@@ -203,8 +247,8 @@ export class ApiService {
     sessionId: string,
     screenshotId: string,
     objectId: string
-  ): Observable<ValidationResult> {
-    return this.http.post<ValidationResult>(
+  ): Observable<ValidationApiResponse> {
+    return this.http.post<ValidationApiResponse>(
       `${this.baseUrl}/sessions/${sessionId}/validate/object`,
       { screenshotId, objectId }
     );
@@ -216,18 +260,18 @@ export class ApiService {
   validateInterObject(
     sessionId: string,
     screenshotId: string
-  ): Observable<InterObjectValidationResult> {
-    return this.http.post<InterObjectValidationResult>(
+  ): Observable<ValidationApiResponse> {
+    return this.http.post<ValidationApiResponse>(
       `${this.baseUrl}/sessions/${sessionId}/validate/inter-object`,
       { screenshotId }
     );
   }
 
   /**
- * Validiert alle Daten einer Session
- */
-  validateAll(sessionId: string): Observable<GlobalValidationResult> {
-    return this.http.post<GlobalValidationResult>(
+   * Validiert alle Daten einer Session
+   */
+  validateAll(sessionId: string): Observable<ValidationApiResponse> {
+    return this.http.post<ValidationApiResponse>(
       `${this.baseUrl}/sessions/${sessionId}/validate/all`,
       {}
     );
