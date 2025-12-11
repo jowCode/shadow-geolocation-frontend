@@ -1,0 +1,506 @@
+.stage7-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+// =============================================================================
+// HEADER
+// =============================================================================
+
+.stage-header {
+  text-align: center;
+  margin-bottom: 32px;
+
+  h1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+
+    mat-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+      color: #4caf50;
+    }
+  }
+
+  .subtitle {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 16px;
+    margin: 0;
+  }
+}
+
+// =============================================================================
+// INPUT CARD
+// =============================================================================
+
+.input-card {
+  margin-bottom: 24px;
+
+  mat-card-header {
+    mat-icon[mat-card-avatar] {
+      background: rgba(33, 150, 243, 0.2);
+      color: #90caf9;
+      border-radius: 50%;
+      padding: 8px;
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+    }
+  }
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .utc-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255, 152, 0, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid #ff9800;
+    font-size: 13px;
+
+    mat-icon {
+      color: #ff9800;
+      flex-shrink: 0;
+    }
+  }
+
+  .orientation-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(33, 150, 243, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid #2196f3;
+    font-size: 13px;
+
+    mat-icon {
+      color: #2196f3;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .hint-content {
+      flex: 1;
+
+      p {
+        margin: 4px 0 8px 0;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 20px;
+        
+        li {
+          margin-bottom: 4px;
+          color: rgba(255, 255, 255, 0.7);
+        }
+      }
+    }
+  }
+}
+
+// =============================================================================
+// LOADING CARD
+// =============================================================================
+
+.loading-card {
+  margin-bottom: 24px;
+  text-align: center;
+
+  p {
+    margin-top: 16px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+// =============================================================================
+// RESULT CARD
+// =============================================================================
+
+.result-card {
+  margin-bottom: 24px;
+
+  &.success {
+    border: 2px solid rgba(76, 175, 80, 0.5);
+
+    mat-card-header {
+      .success-icon {
+        background: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+        border-radius: 50%;
+        padding: 8px;
+        font-size: 24px;
+        width: 40px;
+        height: 40px;
+      }
+    }
+  }
+
+  &.error {
+    border: 2px solid rgba(244, 67, 54, 0.5);
+
+    mat-card-header {
+      .error-icon {
+        background: rgba(244, 67, 54, 0.2);
+        color: #f44336;
+        border-radius: 50%;
+        padding: 8px;
+        font-size: 24px;
+        width: 40px;
+        height: 40px;
+      }
+    }
+
+    .error-hint {
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 8px;
+    }
+
+    ul {
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0;
+      padding-left: 20px;
+
+      li {
+        margin-bottom: 4px;
+      }
+    }
+  }
+
+  mat-divider {
+    margin: 24px 0;
+  }
+}
+
+// =============================================================================
+// MAIN RESULT
+// =============================================================================
+
+.main-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 0;
+}
+
+.location-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .big-location-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #4caf50;
+  }
+
+  .coordinates {
+    display: flex;
+    flex-direction: column;
+
+    .coords-decimal {
+      font-size: 24px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .coords-dms {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      font-family: monospace;
+    }
+  }
+}
+
+.confidence-display {
+  text-align: center;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+
+  .confidence-value {
+    font-size: 36px;
+    font-weight: 700;
+
+    &.primary {
+      color: #4caf50;
+    }
+
+    &.accent {
+      color: #ff9800;
+    }
+
+    &.warn {
+      color: #f44336;
+    }
+  }
+
+  .confidence-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 4px;
+  }
+
+  .error-info {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 8px;
+  }
+}
+
+// =============================================================================
+// MAP ACTIONS
+// =============================================================================
+
+.map-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+// =============================================================================
+// CORRIDOR INFO
+// =============================================================================
+
+.corridor-info {
+  h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 12px 0;
+
+    mat-icon {
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  .corridor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .corridor-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+
+    .label {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .value {
+      font-family: monospace;
+    }
+  }
+}
+
+// =============================================================================
+// SUN DETAILS
+// =============================================================================
+
+.sun-details {
+  h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 12px 0;
+
+    mat-icon {
+      color: #ffeb3b;
+    }
+  }
+
+  .sun-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .sun-column {
+    h5 {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.7);
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+    }
+  }
+
+  .sun-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .label {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+    }
+
+    .value {
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    &.highlight {
+      background: rgba(76, 175, 80, 0.1);
+      padding: 6px 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+
+      .value {
+        color: #4caf50;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+// =============================================================================
+// OTHER LOCATIONS
+// =============================================================================
+
+.other-locations {
+  h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 12px 0;
+
+    mat-icon {
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  .locations-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .location-chip {
+    background: rgba(33, 150, 243, 0.2);
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 13px;
+
+    a {
+      color: #90caf9;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .more-hint {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    font-style: italic;
+  }
+}
+
+// =============================================================================
+// NAVIGATION
+// =============================================================================
+
+.navigation-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 24px;
+}
+
+// =============================================================================
+// SPINNING ANIMATION
+// =============================================================================
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// =============================================================================
+// RESPONSIVE
+// =============================================================================
+
+@media (max-width: 768px) {
+  .stage7-container {
+    padding: 16px;
+  }
+
+  .input-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .main-result {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .location-display {
+    flex-direction: column;
+  }
+
+  .corridor-grid,
+  .sun-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .map-actions {
+    flex-direction: column;
+
+    button, a {
+      width: 100%;
+    }
+  }
+}

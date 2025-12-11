@@ -506,6 +506,6 @@ export class Stage6SummaryComponent implements OnInit {
   }
 
   onProceedToCalculation() {
-    this.snackBar.open('Geolocation-Berechnung noch nicht implementiert', '', { duration: 3000 });
+    this.router.navigate(['/stage7-geolocation']);
   }
 }

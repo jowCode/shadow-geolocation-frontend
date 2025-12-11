@@ -1,0 +1,330 @@
+<div class="stage7-container">
+  <!-- Header -->
+  <div class="stage-header">
+    <h1>
+      <mat-icon>location_on</mat-icon>
+      Geolocation Berechnung
+    </h1>
+    <p class="subtitle">{{ projectName }}</p>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- EINGABE-FORMULAR -->
+  <!-- ================================================================== -->
+  <mat-card class="input-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>input</mat-icon>
+      <mat-card-title>Eingabedaten</mat-card-title>
+      <mat-card-subtitle>Screenshot, Datum, Uhrzeit und Hemisphäre angeben</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="input-grid">
+        <!-- Screenshot Auswahl -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Screenshot</mat-label>
+          <mat-select [(ngModel)]="selectedScreenshotId">
+            @for (ss of availableScreenshots; track ss.id) {
+            <mat-option [value]="ss.id">
+              {{ ss.timestamp }} - {{ ss.objectCount }} Objekte, {{ ss.pairCount }} Punkte
+            </mat-option>
+            }
+          </mat-select>
+          <mat-hint>Screenshot mit den Schatten-Daten</mat-hint>
+        </mat-form-field>
+
+        <!-- Datum -->
+        <mat-form-field appearance="outline">
+          <mat-label>Datum</mat-label>
+          <input matInput type="date" [(ngModel)]="inputDate" />
+          <mat-hint>Aufnahmedatum des Screenshots</mat-hint>
+        </mat-form-field>
+
+        <!-- Uhrzeit (UTC) -->
+        <mat-form-field appearance="outline">
+          <mat-label>Uhrzeit (UTC)</mat-label>
+          <input matInput type="time" [(ngModel)]="inputTime" />
+          <mat-hint>Aufnahmezeit in UTC (nicht Lokalzeit!)</mat-hint>
+        </mat-form-field>
+
+        <!-- Hemisphäre -->
+        <mat-form-field appearance="outline">
+          <mat-label>Hemisphäre</mat-label>
+          <mat-select [(ngModel)]="hemisphere">
+            <mat-option value="north">
+              <mat-icon>north</mat-icon>
+              Nordhalbkugel (Europa, Nordamerika, Asien)
+            </mat-option>
+            <mat-option value="south">
+              <mat-icon>south</mat-icon>
+              Südhalbkugel (Australien, Südamerika, Afrika)
+            </mat-option>
+          </mat-select>
+          <mat-hint>Grobe geografische Einschränkung</mat-hint>
+        </mat-form-field>
+
+        <!-- Raumausrichtung -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Raumausrichtung (Korrekturwinkel)</mat-label>
+          <input matInput type="number" [(ngModel)]="roomOrientation" min="0" max="359" step="1" />
+          <mat-hint>0-359° - siehe Hinweis unten</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <!-- Raumausrichtungs-Hinweis -->
+      <div class="orientation-hint">
+        <mat-icon>compass_calibration</mat-icon>
+        <div class="hint-content">
+          <strong>Raumausrichtung ermitteln:</strong>
+          <p>Die Raumausrichtung verbindet das 3D-Modell mit der echten Welt. Optionen:</p>
+          <ul>
+            <li>
+              <strong>Bekannter Standort (Test):</strong> Raumausrichtung = Echter Sonnenazimut −
+              Modell-Sonnenazimut
+            </li>
+            <li><strong>Kompass:</strong> Wenn du weißt, in welche Richtung eine Wand zeigt</li>
+            <li><strong>Satellitenbilder:</strong> Gebäudeausrichtung mit Karten abgleichen</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- UTC Hinweis -->
+      <div class="utc-hint">
+        <mat-icon>info</mat-icon>
+        <span>
+          <strong>Hinweis:</strong> Die Uhrzeit muss in UTC angegeben werden, nicht in Lokalzeit.
+          Deutschland: Winterzeit = UTC+1, Sommerzeit = UTC+2. Beispiel: 14:00 MESZ = 12:00 UTC
+        </span>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="calculateGeolocation()"
+        [disabled]="!canCalculate || isCalculating"
+      >
+        @if (isCalculating) {
+        <ng-container>
+          <mat-icon class="spinning">sync</mat-icon>
+        </ng-container>
+
+        Berechne... } @else {
+        <ng-container>
+          <mat-icon>calculate</mat-icon>
+        </ng-container>
+        Standort berechnen }
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- Loading -->
+  @if (isCalculating) {
+  <mat-card class="loading-card">
+    <mat-card-content>
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <p>Berechne mögliche Standorte...</p>
+    </mat-card-content>
+  </mat-card>
+  }
+
+  <!-- ================================================================== -->
+  <!-- ERGEBNIS -->
+  <!-- ================================================================== -->
+  @if (result) { @if (result.success && result.data) {
+  <!-- Erfolg -->
+  <mat-card class="result-card success">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="success-icon">check_circle</mat-icon>
+      <mat-card-title>Standort gefunden!</mat-card-title>
+      <mat-card-subtitle>{{ result.message }}</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Hauptergebnis -->
+      <div class="main-result">
+        <div class="location-display">
+          <mat-icon class="big-location-icon">place</mat-icon>
+          <div class="coordinates">
+            <span class="coords-decimal">
+              {{ formatCoordinates(bestLocation!.latitude, bestLocation!.longitude) }}
+            </span>
+            <span class="coords-dms">
+              {{ formatCoordinatesDMS(bestLocation!.latitude, bestLocation!.longitude) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="confidence-display">
+          <div class="confidence-value" [class]="getConfidenceColor(result.data.confidence)">
+            {{ result.data.confidence | number : '1.0-0' }}%
+          </div>
+          <div class="confidence-label">
+            {{ getConfidenceLabel(result.data.confidence) }}
+          </div>
+          <div class="error-info">Fehler: ±{{ result.data.error_deg | number : '1.2-2' }}°</div>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <!-- Karten-Links -->
+      <div class="map-actions">
+        <button mat-stroked-button color="primary" (click)="openInMaps()">
+          <mat-icon>map</mat-icon>
+          In Google Maps öffnen
+        </button>
+        <button mat-stroked-button (click)="copyCoordinates()">
+          <mat-icon>content_copy</mat-icon>
+          Koordinaten kopieren
+        </button>
+        <a
+          mat-stroked-button
+          [href]="getOpenStreetMapUrl(bestLocation!.latitude, bestLocation!.longitude)"
+          target="_blank"
+        >
+          <mat-icon>public</mat-icon>
+          OpenStreetMap
+        </a>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <!-- Korridor-Info -->
+      <div class="corridor-info">
+        <h4>
+          <mat-icon>crop_free</mat-icon>
+          Möglicher Korridor
+        </h4>
+        <div class="corridor-grid">
+          <div class="corridor-item">
+            <span class="label">Breitengrad:</span>
+            <span class="value">
+              {{ result.data.corridor.lat_min | number : '1.2-2' }}° bis
+              {{ result.data.corridor.lat_max | number : '1.2-2' }}°
+            </span>
+          </div>
+          <div class="corridor-item">
+            <span class="label">Längengrad:</span>
+            <span class="value">
+              {{ result.data.corridor.lon_min | number : '1.2-2' }}° bis
+              {{ result.data.corridor.lon_max | number : '1.2-2' }}°
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <!-- Sonnenstand-Details -->
+      <div class="sun-details">
+        <h4>
+          <mat-icon>wb_sunny</mat-icon>
+          Sonnenstand-Analyse
+        </h4>
+        <div class="sun-grid">
+          <div class="sun-column">
+            <h5>Aus Schatten gemessen</h5>
+            <div class="sun-item">
+              <span class="label">Lichtrichtung Azimut:</span>
+              <span class="value"
+                >{{ result.data.shadow_analysis.light_azimuth | number : '1.1-1' }}°</span
+              >
+            </div>
+            <div class="sun-item">
+              <span class="label">Lichtrichtung Elevation:</span>
+              <span class="value"
+                >{{ result.data.shadow_analysis.light_elevation | number : '1.1-1' }}°</span
+              >
+            </div>
+            <div class="sun-item">
+              <span class="label">Sonnen-Azimut:</span>
+              <span class="value"
+                >{{ result.data.sun_position.measured_azimuth | number : '1.1-1' }}°</span
+              >
+            </div>
+            <div class="sun-item">
+              <span class="label">Sonnen-Elevation:</span>
+              <span class="value"
+                >{{ result.data.sun_position.measured_elevation | number : '1.1-1' }}°</span
+              >
+            </div>
+          </div>
+          <div class="sun-column">
+            <h5>Am berechneten Standort</h5>
+            <div class="sun-item">
+              <span class="label">Berechneter Azimut:</span>
+              <span class="value"
+                >{{ result.data.sun_position.calculated_azimuth | number : '1.1-1' }}°</span
+              >
+            </div>
+            <div class="sun-item">
+              <span class="label">Berechnete Elevation:</span>
+              <span class="value"
+                >{{ result.data.sun_position.calculated_elevation | number : '1.1-1' }}°</span
+              >
+            </div>
+            <div class="sun-item highlight">
+              <span class="label">Inter-Objekt Score:</span>
+              <span class="value"
+                >{{ result.data.shadow_analysis.inter_object_score | number : '1.0-0' }}%</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weitere Treffer -->
+      @if (result.data.locations.length > 1) {
+      <mat-divider></mat-divider>
+      <div class="other-locations">
+        <h4>
+          <mat-icon>list</mat-icon>
+          Weitere mögliche Standorte ({{ result.data.locations.length - 1 }})
+        </h4>
+        <div class="locations-list">
+          @for (loc of result.data.locations.slice(1, 5); track $index) {
+          <div class="location-chip">
+            <a [href]="getGoogleMapsUrl(loc.latitude, loc.longitude)" target="_blank">
+              {{ formatCoordinates(loc.latitude, loc.longitude) }}
+            </a>
+          </div>
+          } @if (result.data.locations.length > 5) {
+          <span class="more-hint">+{{ result.data.locations.length - 5 }} weitere</span>
+          }
+        </div>
+      </div>
+      }
+    </mat-card-content>
+  </mat-card>
+  } @else {
+  <!-- Fehler -->
+  <mat-card class="result-card error">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="error-icon">error</mat-icon>
+      <mat-card-title>Kein Standort gefunden</mat-card-title>
+      <mat-card-subtitle>{{ result.message }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="error-hint">Mögliche Ursachen:</p>
+      <ul>
+        <li>Datum oder Uhrzeit falsch angegeben</li>
+        <li>Falsche Hemisphäre ausgewählt</li>
+        <li>Sonnenelevation zu niedrig (Sonne nah am Horizont)</li>
+        <li>Schatten-Markierungen ungenau</li>
+      </ul>
+    </mat-card-content>
+  </mat-card>
+  } }
+
+  <!-- ================================================================== -->
+  <!-- NAVIGATION -->
+  <!-- ================================================================== -->
+  <div class="navigation-bar">
+    <button mat-button (click)="onBack()">
+      <mat-icon>arrow_back</mat-icon>
+      Zurück zur Zusammenfassung
+    </button>
+  </div>
+</div>

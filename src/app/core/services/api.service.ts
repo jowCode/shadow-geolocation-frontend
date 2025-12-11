@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of, tap } from 'rxjs';
 
 /**
  * Schatten-Daten Struktur (wie von Stage 5 gespeichert)
@@ -37,6 +37,40 @@ export interface ShadowPair {
       x: number;
       y: number;
       z: number;
+    };
+  };
+}
+
+export interface GeolocationResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    locations: Array<{ latitude: number; longitude: number }>;
+    corridor: {
+      lat_min: number;
+      lat_max: number;
+      lon_min: number;
+      lon_max: number;
+      lat_center: number;
+      lon_center: number;
+    };
+    confidence: number;
+    sun_position: {
+      measured_azimuth: number;
+      measured_elevation: number;
+      calculated_azimuth: number;
+      calculated_elevation: number;
+    };
+    shadow_analysis: {
+      light_azimuth: number;
+      light_elevation: number;
+      inter_object_score: number;
+    };
+    error_deg: number;
+    input: {
+      date: string;
+      time_utc: string;
+      hemisphere: string;
     };
   };
 }
@@ -285,4 +319,62 @@ export class ApiService {
       `${this.baseUrl}/sessions/${sessionId}/shadows`
     );
   }
+
+  calculateGeolocation(
+    sessionId: string,
+    screenshotId: string,
+    date: string,      // "YYYY-MM-DD"
+    timeUtc: string,   // "HH:MM"
+    hemisphere: string, // "north" oder "south"
+    roomOrientation: number = 0  // 0=Nord, 90=Ost, 180=Süd, 270=West
+  ): Observable<GeolocationResponse> {
+    console.log(`🌍 Berechne Geolocation für Screenshot ${screenshotId}`);
+
+    return this.http.post<GeolocationResponse>(
+      `${this.baseUrl}/sessions/${sessionId}/geolocation`,
+      {
+        screenshot_id: screenshotId,
+        date: date,
+        time_utc: timeUtc,
+        hemisphere: hemisphere,
+        room_orientation: roomOrientation
+      }
+    ).pipe(
+      tap(response => console.log('✅ Geolocation:', response)),
+      catchError(this.handleError<GeolocationResponse>('calculateGeolocation', {
+        success: false,
+        message: 'Geolocation-Berechnung fehlgeschlagen'
+      }))
+    );
+  }
+  private handleError<T>(operation = 'operation', result?: T) {
+    return (error: any): Observable<T> => {
+      console.error(`${operation} failed:`, error);
+      return of(result as T);
+    };
+  }
+
+  /**
+   * Hilfsfunktion: Sonnenstand für Koordinaten berechnen (zum Verifizieren)
+   */
+  getSunPosition(
+    latitude: number,
+    longitude: number,
+    date: string,
+    timeUtc: string
+  ): Observable<any> {
+    return this.http.get<any>(
+      `${this.baseUrl}/sun-position`,
+      {
+        params: {
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
+          date: date,
+          time_utc: timeUtc
+        }
+      }
+    );
+  }
+
+
 }

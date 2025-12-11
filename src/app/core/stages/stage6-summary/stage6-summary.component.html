@@ -1,326 +1,342 @@
-<div class="stage6-container">
-  <!-- Header -->
-  <div class="stage-header">
-    <h1>
-      <mat-icon>summarize</mat-icon>
-      Zusammenfassung & Validierung
-    </h1>
-    <p class="subtitle">{{ projectName }}</p>
-  </div>
+<div class="stage-container">
+  <mat-card>
+    <!-- ACTIONS OBEN -->
+    <mat-card-actions align="end">
+      <button mat-button (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </button>
 
-  <!-- Warnungen wenn Daten fehlen -->
-  @if (!calibration) {
-    <mat-card class="warning-card">
-      <mat-card-content>
-        <mat-icon color="warn">warning</mat-icon>
+      <div class="project-name">{{ projectName }}</div>
+
+      <div class="spacer"></div>
+
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="validateAll()"
+        [disabled]="isValidating || screenshots.length === 0"
+      >
+        <mat-icon>fact_check</mat-icon>
+        Alle validieren
+      </button>
+
+      <button
+        mat-raised-button
+        color="accent"
+        (click)="onProceedToCalculation()"
+        [disabled]="!canProceed"
+      >
+        <mat-icon>calculate</mat-icon>
+        Zur Berechnung
+      </button>
+    </mat-card-actions>
+
+    <mat-card-content>
+      <!-- Warnungen wenn Daten fehlen -->
+      @if (!calibration) {
+      <div class="warning-message">
+        <mat-icon>warning</mat-icon>
         <span>Keine Kalibrierungsdaten gefunden. Bitte zuerst Stage 3 abschließen.</span>
-      </mat-card-content>
-    </mat-card>
-  }
-
-  @if (screenshots.length === 0) {
-    <mat-card class="warning-card">
-      <mat-card-content>
-        <mat-icon color="warn">warning</mat-icon>
+      </div>
+      } @if (screenshots.length === 0) {
+      <div class="warning-message">
+        <mat-icon>warning</mat-icon>
         <span>Keine Schatten-Daten gefunden. Bitte zuerst Stage 5 abschließen.</span>
-      </mat-card-content>
-    </mat-card>
-  }
+      </div>
+      }
 
-  <!-- ================================================================== -->
-  <!-- KALIBRIERUNG CARD -->
-  <!-- ================================================================== -->
-  @if (calibration) {
-    <mat-card class="calibration-card">
-      <mat-card-header>
-        <mat-icon mat-card-avatar>straighten</mat-icon>
-        <mat-card-title>Kalibrierung</mat-card-title>
-        <mat-card-subtitle>Globale Parameter</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <div class="calibration-grid">
-          <div class="calib-item">
+      <!-- KALIBRIERUNG & STATISTIK - Kompakte Zweispalten -->
+      @if (calibration && screenshots.length > 0) {
+      <div class="overview-grid">
+        <!-- Kalibrierung -->
+        <div class="control-group">
+          <div class="control-header">
+            <h3>
+              <mat-icon>straighten</mat-icon>
+              Kalibrierung
+            </h3>
+          </div>
+
+          <div class="calib-row">
             <mat-icon>home</mat-icon>
-            <div class="calib-details">
-              <span class="label">Raum</span>
-              <span class="value">
-                {{ calibration.room.width | number : '1.1-1' }} ×
-                {{ calibration.room.depth | number : '1.1-1' }} ×
-                {{ calibration.room.height | number : '1.1-1' }} m
-              </span>
-            </div>
+            <span class="label">Raum:</span>
+            <span class="value">
+              {{ calibration.room.width | number : '1.1-1' }} ×
+              {{ calibration.room.depth | number : '1.1-1' }} ×
+              {{ calibration.room.height | number : '1.1-1' }} m
+            </span>
           </div>
 
-          <div class="calib-item">
+          <div class="calib-row">
             <mat-icon>videocam</mat-icon>
-            <div class="calib-details">
-              <span class="label">Kamera</span>
-              <span class="value">
-                ({{ calibration.camera.position.x | number : '1.2-2' }},
-                {{ calibration.camera.position.y | number : '1.2-2' }},
-                {{ calibration.camera.position.z | number : '1.2-2' }}) m
-              </span>
-            </div>
+            <span class="label">Kamera:</span>
+            <span class="value">
+              ({{ calibration.camera.position.x | number : '1.2-2' }},
+              {{ calibration.camera.position.y | number : '1.2-2' }},
+              {{ calibration.camera.position.z | number : '1.2-2' }}) m
+            </span>
           </div>
 
-          <div class="calib-item">
+          <div class="calib-row">
             <mat-icon>camera</mat-icon>
-            <div class="calib-details">
-              <span class="label">FOV</span>
-              <span class="value">{{ calibration.camera.fovY | number : '1.0-0' }}°</span>
-            </div>
+            <span class="label">FOV:</span>
+            <span class="value">{{ calibration.camera.fovY | number : '1.0-0' }}°</span>
           </div>
 
-          <div class="calib-item">
+          <div class="calib-row">
             <mat-icon>collections</mat-icon>
-            <div class="calib-details">
-              <span class="label">Screenshots</span>
-              <span class="value">
-                {{ calibration.completedCount }}/{{ calibration.screenshotCount }} kalibriert
-              </span>
-            </div>
+            <span class="label">Screenshots:</span>
+            <span class="value">
+              {{ calibration.completedCount }}/{{ calibration.screenshotCount }}
+            </span>
           </div>
         </div>
-      </mat-card-content>
-    </mat-card>
-  }
 
-  <!-- ================================================================== -->
-  <!-- STATISTIK CARD -->
-  <!-- ================================================================== -->
-  @if (screenshots.length > 0) {
-    <mat-card class="stats-card">
-      <mat-card-content>
-        <div class="stats-row">
-          <div class="stat-item">
-            <span class="stat-value">{{ screenshots.length }}</span>
-            <span class="stat-label">Screenshots</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">{{ totalObjects }}</span>
-            <span class="stat-label">Objekte</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value">{{ totalPairs }}</span>
-            <span class="stat-label">Schatten-Paare</span>
-          </div>
-          <div class="stat-item">
-            <mat-icon [class]="getStatusClass(globalValidationStatus)">
+        <!-- Statistik -->
+        <div class="control-group">
+          <div class="control-header">
+            <h3>
+              <mat-icon>analytics</mat-icon>
+              Statistik
+            </h3>
+            <mat-icon [class]="getStatusClass(globalValidationStatus)" class="status-icon">
               {{ getStatusIcon(globalValidationStatus) }}
             </mat-icon>
-            <span class="stat-label">Validierung</span>
           </div>
+
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value">{{ screenshots.length }}</span>
+              <span class="stat-label">Screenshots</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ totalObjects }}</span>
+              <span class="stat-label">Objekte</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ totalPairs }}</span>
+              <span class="stat-label">Paare</span>
+            </div>
+
+            @if (globalValidationResult) {
+            <div class="stat-item">
+              <span class="stat-value"
+                >{{ globalValidationResult.globalScore | number : '1.0-0' }}%</span
+              >
+              <span class="stat-label">Score</span>
+            </div>
+            }
+          </div>
+
+          @if (globalValidationResult) {
+          <div class="validation-summary">
+            <span class="summary-item valid">
+              <mat-icon>check_circle</mat-icon>
+              {{ globalValidationResult.summary.valid_screenshots }}
+            </span>
+            <span class="summary-item warning">
+              <mat-icon>warning</mat-icon>
+              {{ globalValidationResult.summary.warning_screenshots }}
+            </span>
+            <span class="summary-item error">
+              <mat-icon>error</mat-icon>
+              {{ globalValidationResult.summary.error_screenshots }}
+            </span>
+          </div>
+          } @if (isValidating && !validatingObjectKey && !validatingScreenshotId) {
+          <mat-progress-bar mode="indeterminate" class="compact-progress"></mat-progress-bar>
+          }
         </div>
-      </mat-card-content>
-    </mat-card>
-  }
+      </div>
+      }
 
-  <!-- ================================================================== -->
-  <!-- SCREENSHOTS MIT OBJEKTEN -->
-  <!-- ================================================================== -->
-  @if (screenshots.length > 0) {
-    <div class="screenshots-section">
-      <h2>
-        <mat-icon>photo_library</mat-icon>
-        Schatten-Daten pro Screenshot
-      </h2>
-
-      <mat-accordion multi>
-        @for (screenshot of screenshots; track screenshot.screenshotId; let i = $index) {
-          <mat-expansion-panel [expanded]="i === 0">
+      <!-- SCREENSHOTS MIT OBJEKTEN -->
+      @if (screenshots.length > 0) {
+      <div class="screenshots-section">
+        <mat-accordion multi>
+          @for (screenshot of screenshots; track screenshot.screenshotId; let i = $index) {
+          <mat-expansion-panel [expanded]="i === 0" class="screenshot-panel">
             <mat-expansion-panel-header>
               <mat-panel-title>
-                <!-- Status-Icon für Screenshot -->
                 @if (getScreenshotValidationResult(screenshot.screenshotId); as ssResult) {
-                  <mat-icon [class]="getStatusClass(ssResult.status)">
-                    {{ getStatusIcon(ssResult.status) }}
-                  </mat-icon>
+                <mat-icon [class]="getStatusClass(ssResult.status)">
+                  {{ getStatusIcon(ssResult.status) }}
+                </mat-icon>
                 } @else {
-                  <mat-icon>image</mat-icon>
-                }
-                Screenshot {{ i + 1 }}
+                <mat-icon>image</mat-icon>
+                } Screenshot {{ i + 1 }}
               </mat-panel-title>
               <mat-panel-description>
-                <span class="timestamp-badge">{{ getScreenshotTimestamp(screenshot.screenshotId) }}</span>
                 <span class="object-count">{{ screenshot.objects.length }} Objekte</span>
-                <!-- Score anzeigen wenn vorhanden -->
                 @if (getScreenshotValidationResult(screenshot.screenshotId); as ssResult) {
-                  <span class="score-badge" [class]="getStatusClass(ssResult.status)">
-                    {{ ssResult.interObjectScore | number:'1.0-0' }}%
-                  </span>
+                <span class="score-badge" [class]="getStatusClass(ssResult.status)">
+                  {{ ssResult.interObjectScore | number : '1.0-0' }}%
+                </span>
                 }
               </mat-panel-description>
             </mat-expansion-panel-header>
 
-            <div class="screenshot-details">
-              <!-- Kamera-Rotation -->
+            <div class="screenshot-content">
+              <!-- Kompakte Kamera-Info -->
               @if (getScreenshotCalibration(screenshot.screenshotId); as calib) {
-                <div class="rotation-info">
-                  <mat-icon>360</mat-icon>
+              <div class="info-hint">
+                <mat-icon>360</mat-icon>
+                <span>
+                  Rotation: X={{ calib.cameraRotation.x | number : '1.0-0' }}°, Y={{
+                    calib.cameraRotation.y | number : '1.0-0'
+                  }}°, Z={{ calib.cameraRotation.z | number : '1.0-0' }}°
+                </span>
+              </div>
+              }
+
+              <!-- Screenshot Validierung (falls vorhanden) -->
+              @if (getScreenshotValidationResult(screenshot.screenshotId); as ssResult) {
+              <div class="validation-result-compact" [class]="getStatusClass(ssResult.status)">
+                <div class="result-row">
+                  <mat-icon>{{ getStatusIcon(ssResult.status) }}</mat-icon>
+                  <span class="result-label">Inter-Objekt-Konsistenz:</span>
+                  <span class="result-value"
+                    >{{ ssResult.interObjectScore | number : '1.0-0' }}%</span
+                  >
+                </div>
+                @if (ssResult.meanLightAzimuthDeg !== undefined) {
+                <div class="result-row light-info">
+                  <mat-icon>wb_sunny</mat-icon>
                   <span>
-                    Kamera-Rotation: X={{ calib.cameraRotation.x | number : '1.1-1' }}°,
-                    Y={{ calib.cameraRotation.y | number : '1.1-1' }}°,
-                    Z={{ calib.cameraRotation.z | number : '1.1-1' }}°
+                    Az: {{ formatAngle(ssResult.meanLightAzimuthDeg) }}, El:
+                    {{ formatAngle(ssResult.meanLightElevationDeg) }}
                   </span>
                 </div>
+                }
+              </div>
               }
 
-              <!-- Screenshot Validierungsergebnis -->
-              @if (getScreenshotValidationResult(screenshot.screenshotId); as ssResult) {
-                <div class="screenshot-validation-result" [class]="getStatusClass(ssResult.status)">
-                  <div class="result-header">
-                    <mat-icon>{{ getStatusIcon(ssResult.status) }}</mat-icon>
-                    <span class="result-title">Inter-Objekt-Konsistenz</span>
-                    <span class="result-score">{{ ssResult.interObjectScore | number:'1.0-0' }}%</span>
-                  </div>
-                  @if (ssResult.meanLightAzimuthDeg !== undefined) {
-                    <div class="light-info">
-                      <mat-icon>wb_sunny</mat-icon>
-                      <span>
-                        Mittlere Sonnenrichtung: 
-                        Azimut {{ formatAngle(ssResult.meanLightAzimuthDeg) }}, 
-                        Elevation {{ formatAngle(ssResult.meanLightElevationDeg) }}
-                      </span>
-                    </div>
-                  }
-                </div>
-              }
-
-              <!-- Objekt-Cards -->
+              <!-- Objekt-Grid -->
               <div class="objects-grid">
                 @for (object of screenshot.objects; track object.id) {
-                  <mat-card 
-                    class="object-card"
-                    [class.status-valid]="getObjectValidationResult(screenshot.screenshotId, object.id)?.status === 'valid'"
-                    [class.status-warning]="getObjectValidationResult(screenshot.screenshotId, object.id)?.status === 'warning'"
-                    [class.status-error]="getObjectValidationResult(screenshot.screenshotId, object.id)?.status === 'error'"
-                  >
-                    <mat-card-header>
-                      <!-- Status-Icon im Avatar -->
-                      @if (getObjectValidationResult(screenshot.screenshotId, object.id); as objResult) {
-                        <mat-icon mat-card-avatar [class]="getStatusClass(objResult.status)">
-                          {{ getStatusIcon(objResult.status) }}
-                        </mat-icon>
-                      } @else {
-                        <mat-icon mat-card-avatar>category</mat-icon>
-                      }
-                      <mat-card-title>{{ object.name }}</mat-card-title>
-                      <mat-card-subtitle>{{ object.pairs.length }} Punkte</mat-card-subtitle>
-                    </mat-card-header>
+                <div
+                  class="object-card"
+                  [class.status-valid]="
+                    getObjectValidationResult(screenshot.screenshotId, object.id)?.status ===
+                    'valid'
+                  "
+                  [class.status-warning]="
+                    getObjectValidationResult(screenshot.screenshotId, object.id)?.status ===
+                    'warning'
+                  "
+                  [class.status-error]="
+                    getObjectValidationResult(screenshot.screenshotId, object.id)?.status ===
+                    'error'
+                  "
+                >
+                  <div class="object-header">
+                    @if (getObjectValidationResult(screenshot.screenshotId, object.id); as
+                    objResult) {
+                    <mat-icon class="object-icon" [class]="getStatusClass(objResult.status)">
+                      {{ getStatusIcon(objResult.status) }}
+                    </mat-icon>
+                    } @else {
+                    <mat-icon class="object-icon">category</mat-icon>
+                    }
+                    <div class="object-title">
+                      <span class="name">{{ object.name }}</span>
+                      <span class="pair-count">{{ object.pairs.length }} Punkte</span>
+                    </div>
+                  </div>
 
-                    <mat-card-content>
-                      <!-- Validierungsergebnis für dieses Objekt -->
-                      @if (getObjectValidationResult(screenshot.screenshotId, object.id); as objResult) {
-                        <div class="object-validation-result">
-                          <div class="validation-score-bar">
-                            <mat-progress-bar
-                              mode="determinate"
-                              [value]="objResult.consistencyScore"
-                              [color]="getConsistencyColor(objResult.consistencyScore)"
-                            ></mat-progress-bar>
-                            <span class="score-value">{{ objResult.consistencyScore | number:'1.0-0' }}%</span>
-                          </div>
-                          
-                          <div class="validation-details">
-                            <span class="detail-item">
-                              <mat-icon>straighten</mat-icon>
-                              Ø Fehler: {{ formatAngle(objResult.averageErrorDeg) }}
-                            </span>
-                            @if (objResult.lightAzimuthDeg !== undefined) {
-                              <span class="detail-item sun">
-                                <mat-icon>wb_sunny</mat-icon>
-                                Az: {{ formatAngle(objResult.lightAzimuthDeg) }}
-                                El: {{ formatAngle(objResult.lightElevationDeg) }}
-                              </span>
-                            }
-                          </div>
-                        </div>
-                      }
-
-                      <!-- Punkt-Paare -->
-                      <div class="point-list">
-                        @for (pair of object.pairs; track $index; let pIdx = $index) {
-                          <div class="point-item">
-                            <span class="point-index">{{ pIdx + 1 }}</span>
-
-                            <div class="point-coords">
-                              <span class="coord-label">Objekt:</span>
-                              <span class="coord-value">
-                                ({{ pair.objectPoint.normalizedX | number : '1.3-3' }},
-                                {{ pair.objectPoint.normalizedY | number : '1.3-3' }})
-                              </span>
-                            </div>
-
-                            <mat-icon class="arrow-icon">arrow_forward</mat-icon>
-
-                            <div class="point-coords shadow">
-                              <span class="coord-label">Schatten:</span>
-                              <span class="coord-value">
-                                ({{ pair.shadowPoint.normalizedX | number : '1.3-3' }},
-                                {{ pair.shadowPoint.normalizedY | number : '1.3-3' }})
-                              </span>
-                              <mat-chip class="wall-chip">{{ getWallDisplayName(pair.shadowPoint.wall) }}</mat-chip>
-                            </div>
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-
-                    <mat-card-actions>
-                      <button
-                        mat-button
-                        color="primary"
-                        (click)="validateObject(screenshot.screenshotId, object.id)"
-                        [disabled]="isValidating"
+                  <!-- Validierung kompakt -->
+                  @if (getObjectValidationResult(screenshot.screenshotId, object.id); as objResult)
+                  {
+                  <div class="object-validation">
+                    <div class="progress-row">
+                      <mat-progress-bar
+                        mode="determinate"
+                        [value]="objResult.consistencyScore"
+                        [color]="getConsistencyColor(objResult.consistencyScore)"
+                      ></mat-progress-bar>
+                      <span class="score"
+                        >{{ objResult.consistencyScore | number : '1.0-0' }}%</span
                       >
-                        @if (isValidatingObject(screenshot.screenshotId, object.id)) {
-                          <mat-icon class="spinning">sync</mat-icon>
-                        } @else {
-                          <mat-icon>check_circle</mat-icon>
-                        }
-                        Prüfen
-                      </button>
-                      <button mat-button (click)="onEditObject(screenshot.screenshotId, object.id)">
-                        <mat-icon>edit</mat-icon>
-                        Bearbeiten
-                      </button>
-                    </mat-card-actions>
-                  </mat-card>
+                    </div>
+                    <div class="details-row">
+                      <span class="detail">
+                        <mat-icon>straighten</mat-icon>
+                        Ø {{ formatAngle(objResult.averageErrorDeg) }}
+                      </span>
+                      @if (objResult.lightAzimuthDeg !== undefined) {
+                      <span class="detail sun">
+                        <mat-icon>wb_sunny</mat-icon>
+                        {{ formatAngle(objResult.lightAzimuthDeg) }} /
+                        {{ formatAngle(objResult.lightElevationDeg) }}
+                      </span>
+                      }
+                    </div>
+                  </div>
+                  }
+
+                  <!-- Punkt-Paare kompakt -->
+                  <div class="points-list">
+                    @for (pair of object.pairs; track $index; let pIdx = $index) {
+                    <div class="point-row">
+                      <span class="idx">{{ pIdx + 1 }}</span>
+                      <span class="coords">
+                        ({{ pair.objectPoint.normalizedX | number : '1.2-2' }},
+                        {{ pair.objectPoint.normalizedY | number : '1.2-2' }})
+                      </span>
+                      <mat-icon class="arrow">arrow_forward</mat-icon>
+                      <span class="coords">
+                        ({{ pair.shadowPoint.normalizedX | number : '1.2-2' }},
+                        {{ pair.shadowPoint.normalizedY | number : '1.2-2' }})
+                      </span>
+                      <span class="wall-tag">{{ getWallDisplayName(pair.shadowPoint.wall) }}</span>
+                    </div>
+                    }
+                  </div>
+
+                  <!-- Kompakte Actions -->
+                  <div class="object-actions">
+                    <button
+                      mat-button
+                      (click)="validateObject(screenshot.screenshotId, object.id)"
+                      [disabled]="isValidating"
+                    >
+                      @if (isValidatingObject(screenshot.screenshotId, object.id)) {
+                      <mat-icon class="spinning">sync</mat-icon>
+                      } @else {
+                      <mat-icon>check_circle</mat-icon>
+                      } Prüfen
+                    </button>
+                    <button mat-button (click)="onEditObject(screenshot.screenshotId, object.id)">
+                      <mat-icon>edit</mat-icon>
+                      Edit
+                    </button>
+                  </div>
+                </div>
                 }
               </div>
 
               <!-- Inter-Objekt Validierung -->
               @if (screenshot.objects.length >= 2) {
-                <div class="inter-object-section">
-                  <mat-divider></mat-divider>
-                  <div class="inter-object-header">
-                    <h4>
-                      <mat-icon>compare_arrows</mat-icon>
-                      Inter-Objekt-Konsistenz
-                    </h4>
-                  </div>
-                  <p class="inter-object-desc">
-                    Vergleicht ob alle Objekte in diesem Screenshot auf dieselbe Lichtquelle zeigen.
-                  </p>
-                  <button
-                    mat-stroked-button
-                    color="primary"
-                    (click)="validateInterObject(screenshot.screenshotId)"
-                    [disabled]="isValidating"
-                  >
-                    @if (isValidatingScreenshot(screenshot.screenshotId)) {
-                      <mat-icon class="spinning">sync</mat-icon>
-                    } @else {
-                      <mat-icon>sync</mat-icon>
-                    }
-                    Objekte vergleichen
-                  </button>
-                </div>
+              <div class="inter-object-section">
+                <button
+                  mat-stroked-button
+                  color="primary"
+                  (click)="validateInterObject(screenshot.screenshotId)"
+                  [disabled]="isValidating"
+                >
+                  @if (isValidatingScreenshot(screenshot.screenshotId)) {
+                  <mat-icon class="spinning">sync</mat-icon>
+                  } @else {
+                  <mat-icon>compare_arrows</mat-icon>
+                  } Inter-Objekt-Konsistenz prüfen
+                </button>
+              </div>
               } @else {
-                <div class="inter-object-section disabled">
-                  <mat-icon>info</mat-icon>
-                  <span>Mindestens 2 Objekte erforderlich für Inter-Objekt-Validierung</span>
-                </div>
+              <div class="info-hint muted">
+                <mat-icon>info</mat-icon>
+                <span>Mindestens 2 Objekte für Inter-Objekt-Validierung erforderlich</span>
+              </div>
               }
             </div>
 
@@ -336,92 +352,10 @@
               </button>
             </mat-action-row>
           </mat-expansion-panel>
-        }
-      </mat-accordion>
-    </div>
-  }
-
-  <!-- ================================================================== -->
-  <!-- GLOBAL VALIDATION -->
-  <!-- ================================================================== -->
-  @if (screenshots.length > 0) {
-    <mat-card class="global-validation-card">
-      <mat-card-header>
-        <mat-icon mat-card-avatar>verified</mat-icon>
-        <mat-card-title>Gesamtvalidierung</mat-card-title>
-        <mat-card-subtitle>Prüft alle Screenshots und Objekte</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        @if (isValidating && !validatingObjectKey && !validatingScreenshotId) {
-          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-        } @else {
-          <div class="global-status">
-            <mat-icon [class]="getStatusClass(globalValidationStatus)" class="big-icon">
-              {{ getStatusIcon(globalValidationStatus) }}
-            </mat-icon>
-            <div class="status-details">
-              <span class="status-text">
-                @switch (globalValidationStatus) {
-                  @case ('valid') { Alle Daten konsistent }
-                  @case ('warning') { Einige Inkonsistenzen gefunden }
-                  @case ('error') { Fehler in den Daten }
-                  @default { Noch nicht validiert }
-                }
-              </span>
-              
-              @if (globalValidationResult) {
-                <div class="global-score">
-                  <span class="score-label">Global Score:</span>
-                  <span class="score-value">{{ globalValidationResult.globalScore | number:'1.0-0' }}%</span>
-                </div>
-                <div class="global-summary">
-                  <span class="summary-item valid">
-                    <mat-icon>check_circle</mat-icon>
-                    {{ globalValidationResult.summary.valid_screenshots }}
-                  </span>
-                  <span class="summary-item warning">
-                    <mat-icon>warning</mat-icon>
-                    {{ globalValidationResult.summary.warning_screenshots }}
-                  </span>
-                  <span class="summary-item error">
-                    <mat-icon>error</mat-icon>
-                    {{ globalValidationResult.summary.error_screenshots }}
-                  </span>
-                </div>
-              }
-            </div>
-          </div>
-        }
-      </mat-card-content>
-      <mat-card-actions>
-        <button mat-raised-button color="primary" (click)="validateAll()" [disabled]="isValidating">
-          <mat-icon>fact_check</mat-icon>
-          Alle validieren
-        </button>
-      </mat-card-actions>
-    </mat-card>
-  }
-
-  <!-- ================================================================== -->
-  <!-- NAVIGATION -->
-  <!-- ================================================================== -->
-  <div class="navigation-bar">
-    <button mat-button (click)="onBack()">
-      <mat-icon>arrow_back</mat-icon>
-      Zurück zu Schatten
-    </button>
-
-    <div class="spacer"></div>
-
-    <button
-      mat-raised-button
-      color="accent"
-      (click)="onProceedToCalculation()"
-      [disabled]="!canProceed"
-      matTooltip="Geolocation-Berechnung noch nicht implementiert"
-    >
-      <mat-icon>calculate</mat-icon>
-      Zur Berechnung
-    </button>
-  </div>
+          }
+        </mat-accordion>
+      </div>
+      }
+    </mat-card-content>
+  </mat-card>
 </div>

@@ -1,156 +1,240 @@
-.stage6-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
+.stage-container {
+  max-width: 100%;
+  margin: 0;
+  padding: 8px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+mat-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0 !important;
+}
+
+mat-card-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px !important;
+}
+
+mat-card-actions {
+  padding: 8px 12px !important;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 // =============================================================================
-// HEADER
+// PROJECT NAME IM HEADER
 // =============================================================================
 
-.stage-header {
-  text-align: center;
-  margin-bottom: 32px;
+.project-name {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  padding: 0 12px;
+}
 
-  h1 {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 28px;
-    font-weight: 500;
-    margin: 0 0 8px 0;
+.spacer {
+  flex: 1 1 auto;
+}
 
-    mat-icon {
-      font-size: 32px;
-      width: 32px;
-      height: 32px;
-    }
-  }
+// Buttons - kompakt wie Stage 3
+mat-card-actions button {
+  font-size: 12px;
+  padding: 6px 12px;
+  min-height: 36px;
+}
 
-  .subtitle {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 16px;
-    margin: 0;
-  }
+mat-card-actions mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
 }
 
 // =============================================================================
-// WARNING CARD
+// WARNING MESSAGE
 // =============================================================================
 
-.warning-card {
-  margin-bottom: 24px;
+.warning-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
   background: rgba(255, 152, 0, 0.1);
-  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-left: 3px solid #ff9800;
+  border-radius: 3px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #e65100;
 
-  mat-card-content {
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: #ff9800;
+    flex-shrink: 0;
+  }
+}
+
+// =============================================================================
+// OVERVIEW GRID - Kalibrierung & Statistik
+// =============================================================================
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+// Control Groups - wie Stage 3
+.control-group {
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.control-header h3 {
+  margin: 0;
+  font-size: 12px;
+  color: #333;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control-header h3 mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #666;
+}
+
+.control-header .status-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+// Kalibrierungs-Rows
+.calib-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 11px;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #666;
+    flex-shrink: 0;
+  }
+
+  .label {
+    color: #666;
+    font-weight: 600;
+    min-width: 70px;
+  }
+
+  .value {
+    font-family: 'Roboto Mono', monospace;
+    color: #333;
+  }
+}
+
+// Stats Grid
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  background: rgba(33, 150, 243, 0.05);
+  border-radius: 4px;
+
+  .stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #3f51b5;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+}
+
+// Validation Summary
+.validation-summary {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+
+  .summary-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 16px !important;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
 
     mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+
+    &.valid {
+      color: #4caf50;
+    }
+
+    &.warning {
       color: #ff9800;
     }
-  }
-}
 
-// =============================================================================
-// CALIBRATION CARD
-// =============================================================================
-
-.calibration-card {
-  margin-bottom: 24px;
-
-  mat-card-header {
-    mat-icon[mat-card-avatar] {
-      background: rgba(103, 58, 183, 0.2);
-      color: #b39ddb;
-      border-radius: 50%;
-      padding: 8px;
-      font-size: 24px;
-      width: 40px;
-      height: 40px;
-    }
-  }
-
-  .calibration-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-  }
-
-  .calib-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-
-    mat-icon {
-      color: rgba(255, 255, 255, 0.6);
-    }
-
-    .calib-details {
-      display: flex;
-      flex-direction: column;
-
-      .label {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.5);
-        text-transform: uppercase;
-      }
-
-      .value {
-        font-size: 14px;
-        font-weight: 500;
-      }
+    &.error {
+      color: #f44336;
     }
   }
 }
 
-// =============================================================================
-// STATS CARD
-// =============================================================================
-
-.stats-card {
-  margin-bottom: 24px;
-
-  .stats-row {
-    display: flex;
-    justify-content: space-around;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .stat-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 16px 24px;
-
-    .stat-value {
-      font-size: 32px;
-      font-weight: 600;
-      color: #90caf9;
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      text-transform: uppercase;
-      margin-top: 4px;
-    }
-
-    mat-icon {
-      font-size: 32px;
-      width: 32px;
-      height: 32px;
-    }
-  }
+.compact-progress {
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 8px;
 }
 
 // =============================================================================
@@ -170,7 +254,7 @@
 }
 
 .status-pending {
-  color: rgba(255, 255, 255, 0.4) !important;
+  color: #999 !important;
 }
 
 // =============================================================================
@@ -178,160 +262,166 @@
 // =============================================================================
 
 .screenshots-section {
-  margin-bottom: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
 
-  h2 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 20px;
-    font-weight: 500;
-    margin-bottom: 16px;
+mat-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-    mat-icon {
-      color: rgba(255, 255, 255, 0.7);
-    }
-  }
+.screenshot-panel {
+  background: #fafafa !important;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px !important;
 
-  mat-expansion-panel {
-    margin-bottom: 8px;
-    background: #2d2d2d;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
+  mat-expansion-panel-header {
+    padding: 8px 12px !important;
+    min-height: 40px !important;
   }
 
   mat-panel-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
 
     mat-icon {
-      font-size: 20px;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
     }
   }
 
   mat-panel-description {
     display: flex;
     align-items: center;
-    gap: 12px;
-  }
+    gap: 8px;
+    font-size: 11px;
 
-  .timestamp-badge {
-    background: rgba(33, 150, 243, 0.2);
-    color: #90caf9;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-  }
-
-  .object-count {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
-  }
-
-  .score-badge {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-
-    &.status-valid {
-      background: rgba(76, 175, 80, 0.2);
+    .object-count {
+      color: #666;
     }
 
-    &.status-warning {
-      background: rgba(255, 152, 0, 0.2);
-    }
+    .score-badge {
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.05);
 
-    &.status-error {
-      background: rgba(244, 67, 54, 0.2);
+      &.status-valid {
+        background: rgba(76, 175, 80, 0.15);
+        color: #4caf50;
+      }
+
+      &.status-warning {
+        background: rgba(255, 152, 0, 0.15);
+        color: #ff9800;
+      }
+
+      &.status-error {
+        background: rgba(244, 67, 54, 0.15);
+        color: #f44336;
+      }
     }
   }
 }
 
-// =============================================================================
-// SCREENSHOT DETAILS
-// =============================================================================
+// Screenshot Content
+.screenshot-content {
+  padding: 8px 12px;
+}
 
-.screenshot-details {
-  padding: 16px 0;
+// Info-Hints wie Stage 3
+.info-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(25, 118, 210, 0.08);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: #1565c0;
+  line-height: 1.4;
 
-  .rotation-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    margin-bottom: 16px;
-    font-size: 13px;
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: #1976d2;
+  }
+
+  &.muted {
+    background: rgba(0, 0, 0, 0.04);
+    color: #666;
 
     mat-icon {
-      font-size: 18px;
-      color: rgba(255, 255, 255, 0.6);
+      color: #999;
     }
   }
 }
 
-// =============================================================================
-// SCREENSHOT VALIDATION RESULT
-// =============================================================================
-
-.screenshot-validation-result {
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border-left: 4px solid;
+// Validation Result Compact
+.validation-result-compact {
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border-left: 3px solid;
 
   &.status-valid {
     border-left-color: #4caf50;
-    background: rgba(76, 175, 80, 0.1);
+    background: rgba(76, 175, 80, 0.05);
   }
 
   &.status-warning {
     border-left-color: #ff9800;
-    background: rgba(255, 152, 0, 0.1);
+    background: rgba(255, 152, 0, 0.05);
   }
 
   &.status-error {
     border-left-color: #f44336;
-    background: rgba(244, 67, 54, 0.1);
+    background: rgba(244, 67, 54, 0.05);
   }
 
-  .result-header {
+  .result-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    font-size: 11px;
 
     mat-icon {
-      font-size: 20px;
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
     }
 
-    .result-title {
-      font-weight: 500;
-      flex: 1;
-    }
-
-    .result-score {
-      font-size: 18px;
+    .result-label {
       font-weight: 600;
+      color: #333;
     }
-  }
 
-  .light-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    .result-value {
+      font-weight: 600;
+      color: #3f51b5;
+      font-family: 'Roboto Mono', monospace;
+      margin-left: auto;
+    }
 
-    mat-icon {
-      font-size: 16px;
-      color: #ffeb3b;
+    &.light-info {
+      margin-top: 4px;
+      color: #666;
+
+      mat-icon {
+        color: #ffeb3b;
+      }
     }
   }
 }
@@ -342,15 +432,17 @@
 
 .objects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .object-card {
-  background: #3a3a3a;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
   transition: border-color 0.2s ease;
-  border: 2px solid transparent;
 
   &.status-valid {
     border-color: rgba(76, 175, 80, 0.5);
@@ -363,80 +455,83 @@
   &.status-error {
     border-color: rgba(244, 67, 54, 0.5);
   }
+}
 
-  mat-card-header {
-    mat-icon[mat-card-avatar] {
-      background: rgba(33, 150, 243, 0.2);
-      color: #90caf9;
-      border-radius: 50%;
-      padding: 8px;
-      font-size: 20px;
-      width: 36px;
-      height: 36px;
+.object-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 
-      &.status-valid {
-        background: rgba(76, 175, 80, 0.2);
-        color: #4caf50;
-      }
+  .object-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
 
-      &.status-warning {
-        background: rgba(255, 152, 0, 0.2);
-        color: #ff9800;
-      }
+  .object-title {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 
-      &.status-error {
-        background: rgba(244, 67, 54, 0.2);
-        color: #f44336;
-      }
+    .name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .pair-count {
+      font-size: 10px;
+      color: #666;
     }
   }
 }
 
-// =============================================================================
-// OBJECT VALIDATION RESULT
-// =============================================================================
+// Object Validation
+.object-validation {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
 
-.object-validation-result {
-  margin-bottom: 12px;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-
-  .validation-score-bar {
+  .progress-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    margin-bottom: 4px;
 
     mat-progress-bar {
       flex: 1;
-      height: 8px;
-      border-radius: 4px;
+      height: 6px;
+      border-radius: 3px;
     }
 
-    .score-value {
+    .score {
+      font-size: 11px;
       font-weight: 600;
-      min-width: 45px;
+      font-family: 'Roboto Mono', monospace;
+      color: #3f51b5;
+      min-width: 35px;
       text-align: right;
     }
   }
 
-  .validation-details {
+  .details-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 8px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
+    gap: 10px;
+    font-size: 10px;
 
-    .detail-item {
+    .detail {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
+      color: #666;
 
       mat-icon {
-        font-size: 14px;
-        width: 14px;
-        height: 14px;
+        font-size: 12px;
+        width: 12px;
+        height: 12px;
       }
 
       &.sun mat-icon {
@@ -446,73 +541,76 @@
   }
 }
 
-// =============================================================================
-// POINT LIST
-// =============================================================================
-
-.point-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+// Points List
+.points-list {
+  margin-bottom: 8px;
+  font-size: 10px;
 }
 
-.point-item {
+.point-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 3px;
+  margin-bottom: 3px;
 
-  .point-index {
-    width: 24px;
-    height: 24px;
-    background: rgba(33, 150, 243, 0.3);
+  .idx {
+    width: 16px;
+    height: 16px;
+    background: rgba(33, 150, 243, 0.2);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 9px;
     font-weight: 600;
+    flex-shrink: 0;
   }
 
-  .point-coords {
-    display: flex;
-    flex-direction: column;
-    font-size: 12px;
-
-    .coord-label {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 10px;
-      text-transform: uppercase;
-    }
-
-    .coord-value {
-      font-family: monospace;
-    }
-
-    &.shadow {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 8px;
-
-      .coord-label {
-        display: none;
-      }
-    }
-  }
-
-  .arrow-icon {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  .wall-chip {
+  .coords {
+    font-family: 'Roboto Mono', monospace;
     font-size: 10px;
-    min-height: 20px;
-    padding: 0 8px;
+    color: #333;
+  }
+
+  .arrow {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    color: #999;
+    flex-shrink: 0;
+  }
+
+  .wall-tag {
+    font-size: 9px;
+    padding: 1px 4px;
+    background: rgba(103, 58, 183, 0.1);
+    color: #673ab7;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+}
+
+// Object Actions
+.object-actions {
+  display: flex;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #e0e0e0;
+
+  button {
+    font-size: 10px;
+    padding: 4px 8px;
+    min-height: 28px;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      margin-right: 3px;
+    }
   }
 }
 
@@ -521,153 +619,21 @@
 // =============================================================================
 
 .inter-object-section {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
 
-  mat-divider {
-    margin-bottom: 16px;
-  }
-
-  .inter-object-header {
-    h4 {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      font-weight: 500;
-
-      mat-icon {
-        font-size: 18px;
-      }
-    }
-  }
-
-  .inter-object-desc {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.6);
-    margin: 0 0 12px 0;
-  }
-
-  &.disabled {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 13px;
-    font-style: italic;
+  button {
+    font-size: 11px;
+    padding: 6px 10px;
+    min-height: 32px;
 
     mat-icon {
-      font-size: 18px;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      margin-right: 4px;
     }
-  }
-}
-
-// =============================================================================
-// GLOBAL VALIDATION CARD
-// =============================================================================
-
-.global-validation-card {
-  margin-bottom: 24px;
-
-  mat-card-header {
-    mat-icon[mat-card-avatar] {
-      background: rgba(76, 175, 80, 0.2);
-      color: #81c784;
-      border-radius: 50%;
-      padding: 8px;
-      font-size: 24px;
-      width: 40px;
-      height: 40px;
-    }
-  }
-
-  .global-status {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px;
-
-    .big-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-    }
-
-    .status-details {
-      flex: 1;
-
-      .status-text {
-        font-size: 18px;
-        font-weight: 500;
-        display: block;
-        margin-bottom: 8px;
-      }
-
-      .global-score {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-
-        .score-label {
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .score-value {
-          font-size: 24px;
-          font-weight: 600;
-          color: #90caf9;
-        }
-      }
-
-      .global-summary {
-        display: flex;
-        gap: 16px;
-
-        .summary-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 14px;
-
-          mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-          }
-
-          &.valid {
-            color: #4caf50;
-          }
-
-          &.warning {
-            color: #ff9800;
-          }
-
-          &.error {
-            color: #f44336;
-          }
-        }
-      }
-    }
-  }
-}
-
-// =============================================================================
-// NAVIGATION BAR
-// =============================================================================
-
-.navigation-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: 24px;
-
-  .spacer {
-    flex: 1;
   }
 }
 
@@ -689,33 +655,55 @@
 }
 
 // =============================================================================
+// SCROLLBAR STYLING
+// =============================================================================
+
+mat-card-content::-webkit-scrollbar,
+.screenshots-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+mat-card-content::-webkit-scrollbar-track,
+.screenshots-section::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+mat-card-content::-webkit-scrollbar-thumb,
+.screenshots-section::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+mat-card-content::-webkit-scrollbar-thumb:hover,
+.screenshots-section::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+// =============================================================================
 // RESPONSIVE
 // =============================================================================
 
-@media (max-width: 768px) {
-  .stage6-container {
-    padding: 16px;
+@media (max-width: 1200px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
   }
 
   .objects-grid {
     grid-template-columns: 1fr;
   }
+}
 
-  .calibration-grid {
+@media (max-width: 768px) {
+  .stage-container {
+    padding: 4px;
+  }
+
+  mat-card-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .stats-grid {
     grid-template-columns: 1fr;
-  }
-
-  .stats-row {
-    flex-direction: column;
-  }
-
-  .point-item {
-    flex-direction: column;
-    align-items: flex-start;
-
-    .arrow-icon {
-      transform: rotate(90deg);
-      align-self: center;
-    }
   }
 }
