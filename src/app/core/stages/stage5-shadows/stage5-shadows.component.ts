@@ -435,27 +435,50 @@ export class Stage5ShadowsComponent implements OnInit, AfterViewInit {
     const objCanvas = pair._displayCache.objectPointPx;
     const shadowCanvas = pair._displayCache.shadowPointPx;
 
-    // Objekt-Punkt
-    ctx.fillStyle = isActive ? 'rgba(255, 0, 0, 1)' : 'rgba(255, 0, 0, 0.6)';
+    const crosshairSize = 8; // Länge der Fadenkreuz-Linien
+
+    // Objekt-Punkt als Fadenkreuz
+    ctx.strokeStyle = isActive ? 'rgba(255, 0, 0, 1)' : 'rgba(255, 0, 0, 0.6)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(objCanvas.px, objCanvas.py, 10, 0, 2 * Math.PI);
+    // Horizontale Linie
+    ctx.moveTo(objCanvas.px - crosshairSize, objCanvas.py);
+    ctx.lineTo(objCanvas.px + crosshairSize, objCanvas.py);
+    // Vertikale Linie
+    ctx.moveTo(objCanvas.px, objCanvas.py - crosshairSize);
+    ctx.lineTo(objCanvas.px, objCanvas.py + crosshairSize);
+    ctx.stroke();
+
+    // Kleiner Kreis in der Mitte für bessere Sichtbarkeit
+    ctx.beginPath();
+    ctx.arc(objCanvas.px, objCanvas.py, 2, 0, 2 * Math.PI);
+    ctx.fillStyle = isActive ? 'rgba(255, 0, 0, 1)' : 'rgba(255, 0, 0, 0.6)';
     ctx.fill();
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.stroke();
 
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 14px Arial';
+    ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`${objIndex + 1}-${pairIndex + 1}`, objCanvas.px, objCanvas.py + 4);
+    ctx.fillText(`${objIndex + 1}-${pairIndex + 1}`, objCanvas.px, objCanvas.py + 18);
 
-    // Schatten-Punkt
-    ctx.fillStyle = isActive ? 'rgba(0, 100, 255, 1)' : 'rgba(0, 100, 255, 0.6)';
+    // Schatten-Punkt als Fadenkreuz
+    ctx.strokeStyle = isActive ? 'rgba(0, 100, 255, 1)' : 'rgba(0, 100, 255, 0.6)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(shadowCanvas.px, shadowCanvas.py, 10, 0, 2 * Math.PI);
+    ctx.moveTo(shadowCanvas.px - crosshairSize, shadowCanvas.py);
+    ctx.lineTo(shadowCanvas.px + crosshairSize, shadowCanvas.py);
+    ctx.moveTo(shadowCanvas.px, shadowCanvas.py - crosshairSize);
+    ctx.lineTo(shadowCanvas.px, shadowCanvas.py + crosshairSize);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(shadowCanvas.px, shadowCanvas.py, 2, 0, 2 * Math.PI);
+    ctx.fillStyle = isActive ? 'rgba(0, 100, 255, 1)' : 'rgba(0, 100, 255, 0.6)';
     ctx.fill();
     ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.stroke();
 
     // Linie
