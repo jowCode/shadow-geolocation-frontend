@@ -2,9 +2,6 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, Observable, of, tap } from 'rxjs';
 
-/**
- * Schatten-Daten Struktur (wie von Stage 5 gespeichert)
- */
 export interface ShadowData {
   version: string;
   globalFovY: number;
@@ -13,7 +10,7 @@ export interface ShadowData {
 
 export interface ScreenshotShadowData {
   screenshotId: string;
-  id?: string;  // Alternative ID
+  id?: string;
   timestamp?: string;
   objects: ShadowObject[];
 }
@@ -125,54 +122,36 @@ export interface GlobalValidationData {
 
 export type ValidationStatus = 'pending' | 'valid' | 'warning' | 'error';
 
-/**
- * Validierungs-Ergebnis für einen einzelnen Punkt
- */
 export interface PointValidationResult {
   pointIndex: number;
   status: ValidationStatus;
-  errorPercent?: number;       // Abweichung in %
-  errorDistance?: number;      // Abweichung in Weltkoordinaten
+  errorPercent?: number;
+  errorDistance?: number;
   message?: string;
 }
 
-/**
- * Ergebnis der Intra-Objekt-Validierung
- * Prüft ob die Schatten-Strahlen eines Objekts sich in einem Punkt schneiden
- */
 export interface ValidationResult {
   success: boolean;
   objectId: string;
   screenshotId: string;
   status: ValidationStatus;
-  consistencyScore: number;    // 0-100%, wie gut schneiden sich die Strahlen
+  consistencyScore: number;
   points: PointValidationResult[];
-
-  // Berechnete Lichtrichtung (wenn erfolgreich)
   estimatedLightDirection?: {
     x: number;
     y: number;
     z: number;
   };
-
-  // Durchschnittlicher Fehler
   averageError?: number;
   maxError?: number;
-
   message?: string;
 }
 
-/**
- * Ergebnis der Inter-Objekt-Validierung
- * Prüft ob alle Objekte auf dieselbe Lichtquelle zeigen
- */
 export interface InterObjectValidationResult {
   success: boolean;
   screenshotId: string;
   status: ValidationStatus;
-  interObjectScore: number;    // 0-100%, wie konsistent sind die Objekte
-
-  // Vergleich der Lichtrichtungen pro Objekt
+  interObjectScore: number;
   objectComparisons: {
     objectId: string;
     objectName: string;
@@ -181,11 +160,9 @@ export interface InterObjectValidationResult {
       y: number;
       z: number;
     };
-    deviationFromMean: number;  // Winkelabweichung vom Mittelwert in Grad
+    deviationFromMean: number;
     status: ValidationStatus;
   }[];
-
-  // Gemittelte Lichtrichtung
   meanLightDirection?: {
     x: number;
     y: number;
@@ -195,14 +172,11 @@ export interface InterObjectValidationResult {
   message?: string;
 }
 
-/**
- * Ergebnis der globalen Validierung
- */
 export interface GlobalValidationResult {
   success: boolean;
   sessionId: string;
   status: ValidationStatus;
-  overallScore: number;        // 0-100%
+  overallScore: number;
 
   screenshotResults: {
     screenshotId: string;
@@ -210,22 +184,13 @@ export interface GlobalValidationResult {
     intraObjectScore: number;
     interObjectScore: number;
   }[];
-
-  // Sind alle Screenshots konsistent miteinander?
   crossScreenshotConsistency?: number;
-
   message?: string;
 }
 
-
-
-
-
-
-
-
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+
   private baseUrl = 'http://localhost:8000/api';
 
   constructor(private http: HttpClient) { }
@@ -274,9 +239,6 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/session/${sessionId}/organize`, data);
   }
 
-  /**
-   * Validiert ein einzelnes Objekt (Intra-Objekt-Konsistenz)
-   */
   validateObject(
     sessionId: string,
     screenshotId: string,
@@ -288,9 +250,6 @@ export class ApiService {
     );
   }
 
-  /**
-   * Validiert Inter-Objekt-Konsistenz für einen Screenshot
-   */
   validateInterObject(
     sessionId: string,
     screenshotId: string
@@ -301,9 +260,6 @@ export class ApiService {
     );
   }
 
-  /**
-   * Validiert alle Daten einer Session
-   */
   validateAll(sessionId: string): Observable<ValidationApiResponse> {
     return this.http.post<ValidationApiResponse>(
       `${this.baseUrl}/sessions/${sessionId}/validate/all`,
@@ -311,9 +267,6 @@ export class ApiService {
     );
   }
 
-  /**
- * Lädt die Schatten-Daten für eine Session
- */
   loadShadows(sessionId: string): Observable<{ data: ShadowData | null }> {
     return this.http.get<{ data: ShadowData | null }>(
       `${this.baseUrl}/sessions/${sessionId}/shadows`
@@ -323,12 +276,11 @@ export class ApiService {
   calculateGeolocation(
     sessionId: string,
     screenshotId: string,
-    date: string,      // "YYYY-MM-DD"
-    timeUtc: string,   // "HH:MM"
-    hemisphere: string, // "north" oder "south"
-    roomOrientation: number = 0  // 0=Nord, 90=Ost, 180=Süd, 270=West
+    date: string,
+    timeUtc: string,
+    hemisphere: string,
+    roomOrientation: number = 0
   ): Observable<GeolocationResponse> {
-    console.log(`🌍 Berechne Geolocation für Screenshot ${screenshotId}`);
 
     return this.http.post<GeolocationResponse>(
       `${this.baseUrl}/sessions/${sessionId}/geolocation`,
@@ -347,6 +299,8 @@ export class ApiService {
       }))
     );
   }
+
+
   private handleError<T>(operation = 'operation', result?: T) {
     return (error: any): Observable<T> => {
       console.error(`${operation} failed:`, error);
@@ -354,9 +308,6 @@ export class ApiService {
     };
   }
 
-  /**
-   * Hilfsfunktion: Sonnenstand für Koordinaten berechnen (zum Verifizieren)
-   */
   getSunPosition(
     latitude: number,
     longitude: number,
@@ -375,6 +326,4 @@ export class ApiService {
       }
     );
   }
-
-
 }
